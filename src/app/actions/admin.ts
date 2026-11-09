@@ -7,19 +7,24 @@ import {
   dbCheckSupabaseTables,
   dbCreateInquiry,
   dbDeleteCategory,
+  dbDeleteIndustry,
   dbDeleteInquiry,
   dbDeletePost,
   dbDeleteProduct,
+  dbGetLinks,
   dbGetSiteSettings,
+  dbToggleProductHomeDisplay,
   dbUpdateInquiryStatus,
+  dbUpdateLinks,
   dbUpdateSiteSettings,
   dbUpsertCategory,
+  dbUpsertIndustry,
   dbUpsertPost,
   dbUpsertProduct,
   SupabaseTablesReport,
 } from '@/lib/db';
 import { getSupabaseAdminClient, isSupabaseConfigured } from '@/lib/supabase';
-import { GoogleDriveBackupConfig } from '@/types/database';
+import { GoogleDriveBackupConfig, WebLink } from '@/types/database';
 import {
   generateFullBackupZipBuffer,
   testGoogleDriveConnection,
@@ -97,15 +102,18 @@ export async function loginAdminAction(formData: FormData) {
     };
   }
 
+  const isProd = process.env.NODE_ENV === 'production';
   const cookieStore = await cookies();
   cookieStore.set('admin_session', 'authenticated', {
     httpOnly: true,
+    secure: isProd,
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 7, // 7 ngày
   });
   cookieStore.set('admin_email', email, {
     httpOnly: true,
+    secure: isProd,
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
@@ -182,6 +190,10 @@ export async function saveProductAction(formData: FormData) {
     (formData.get('slug') as string)?.trim() || slugifyVi(name);
   const category_id =
     (formData.get('category_id') as string)?.trim() || 'cat-pvc';
+  const industry_id =
+    (formData.get('industry_id') as string)?.trim() || undefined;
+  const industry_ids_raw = formData.getAll('industry_ids') as string[];
+  const industry_ids = industry_ids_raw.map((s) => s.trim()).filter(Boolean);
   const sku = (formData.get('sku') as string)?.trim() || undefined;
   const price_label =
     (formData.get('price_label') as string)?.trim() || 'Liên hệ báo giá sỉ';
@@ -209,6 +221,8 @@ export async function saveProductAction(formData: FormData) {
   const res = await dbUpsertProduct({
     id,
     category_id,
+    industry_id,
+    industry_ids,
     name,
     slug,
     sku,
@@ -238,6 +252,21 @@ export async function deleteProductAction(idOrSlug: string) {
   }
 
   const res = await dbDeleteProduct(idOrSlug);
+  if (res.ok) {
+    await triggerOnDemandRevalidationAction('products');
+  }
+  return res;
+}
+
+export async function toggleProductHomeAction(
+  idOrSlug: string,
+  targetState?: boolean
+) {
+  if (!(await ensureAdmin())) {
+    return { ok: false, message: 'Không có quyền thực hiện' };
+  }
+
+  const res = await dbToggleProductHomeDisplay(idOrSlug, targetState);
   if (res.ok) {
     await triggerOnDemandRevalidationAction('products');
   }
@@ -361,6 +390,60 @@ export async function deleteCategoryAction(id: string) {
 }
 
 // ============================================================================
+// 3.1 CRUD NGÀNH NGHỀ ỨNG DỤNG (INDUSTRIES)
+// ============================================================================
+export async function saveIndustryAction(formData: FormData) {
+  if (!(await ensureAdmin())) {
+    return { ok: false, message: 'Không có quyền thực hiện' };
+  }
+
+  const id = (formData.get('id') as string)?.trim() || undefined;
+  const name = (formData.get('name') as string)?.trim();
+  if (!name) {
+    return { ok: false, message: 'Tên ngành nghề không được để trống' };
+  }
+
+  const slug = (formData.get('slug') as string)?.trim() || slugifyVi(name);
+  const icon = (formData.get('icon') as string)?.trim() || '📦';
+  const tag = (formData.get('tag') as string)?.trim() || null;
+  const description = (formData.get('description') as string)?.trim() || null;
+  const image_url = (formData.get('image_url') as string)?.trim() || null;
+  const sort_order = Number(formData.get('sort_order') || 1);
+
+  const res = await dbUpsertIndustry({
+    id,
+    name,
+    slug,
+    icon,
+    tag,
+    description,
+    image_url,
+    sort_order,
+  });
+
+  if (res.ok) {
+    await triggerOnDemandRevalidationAction('categories');
+    revalidateTag(CACHE_TAGS.INDUSTRIES, 'max');
+    revalidatePath('/');
+  }
+  return res;
+}
+
+export async function deleteIndustryAction(id: string) {
+  if (!(await ensureAdmin())) {
+    return { ok: false, message: 'Không có quyền thực hiện' };
+  }
+
+  const res = await dbDeleteIndustry(id);
+  if (res.ok) {
+    await triggerOnDemandRevalidationAction('categories');
+    revalidateTag(CACHE_TAGS.INDUSTRIES, 'max');
+    revalidatePath('/');
+  }
+  return res;
+}
+
+// ============================================================================
 // 4. CẤU HÌNH WEBSITE (SITE SETTINGS)
 // ============================================================================
 export async function saveSiteSettingsAction(formData: FormData) {
@@ -399,6 +482,87 @@ export async function saveSiteSettingsAction(formData: FormData) {
   return res;
 }
 
+export async function saveWebsiteLinksAction(formData: FormData): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  if (!(await ensureAdmin())) {
+    return { ok: false, message: 'Không có quyền thực hiện' };
+  }
+
+  const fb =
+    (formData.get('link_facebook') as string)?.trim() || 'https://facebook.com';
+  const tt =
+    (formData.get('link_tiktok') as string)?.trim() || 'https://tiktok.com';
+  const yt =
+    (formData.get('link_youtube') as string)?.trim() || 'https://youtube.com';
+  const tw =
+    (formData.get('link_twitter') as string)?.trim() || 'https://twitter.com';
+  const v1 =
+    (formData.get('video_intro_url') as string)?.trim() ||
+    'https://www.youtube.com/watch?v=lDzM8QeIuGs';
+  const v2 =
+    (formData.get('video_factory_url') as string)?.trim() ||
+    'https://www.youtube.com/embed/lDzM8QeIuGs?si=6N-vPjF-LDRJ9N42';
+
+  const updatedLinks: WebLink[] = [
+    {
+      id: 'facebook',
+      title: 'Facebook Fanpage',
+      url: fb,
+      type: 'social',
+      description: 'Nút icon Facebook trên thanh đầu trang (Header)',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'tiktok',
+      title: 'Kênh TikTok Xưởng',
+      url: tt,
+      type: 'social',
+      description: 'Nút icon TikTok trên thanh đầu trang (Header)',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'youtube',
+      title: 'Kênh YouTube Doanh Nghiệp',
+      url: yt,
+      type: 'social',
+      description: 'Nút icon YouTube trên thanh đầu trang (Header)',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'twitter',
+      title: 'Twitter / X',
+      url: tw,
+      type: 'social',
+      description: 'Nút icon Twitter/X trên thanh đầu trang (Header)',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'video_intro',
+      title: 'Video 1: Giới Thiệu Xưởng (Mục Về Chúng Tôi)',
+      url: v1,
+      type: 'video',
+      description: 'Video giới thiệu xưởng sản xuất ở Mục 2 trên Trang Chủ',
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'video_factory',
+      title: 'Video 2: Vận Hành Nhà Xưởng (Mục Quy Trình)',
+      url: v2,
+      type: 'video',
+      description: 'Khung video nhúng phát trực tiếp ở Mục 11 trên Trang Chủ',
+      updated_at: new Date().toISOString(),
+    },
+  ];
+
+  const res = await dbUpdateLinks(updatedLinks);
+  if (res.ok) {
+    await triggerOnDemandRevalidationAction('settings');
+  }
+  return res;
+}
+
 export async function saveBannersAction(formData: FormData): Promise<{
   ok: boolean;
   message: string;
@@ -407,16 +571,27 @@ export async function saveBannersAction(formData: FormData): Promise<{
     return { ok: false, message: 'Không có quyền thực hiện' };
   }
 
-  const hero_banner_url =
-    (formData.get('hero_banner_url') as string)?.trim() || null;
-  const about_banner_url =
-    (formData.get('about_banner_url') as string)?.trim() || null;
+  const updateData: Record<string, any> = {};
+  if (formData.has('hero_banner_url')) {
+    updateData.hero_banner_url =
+      (formData.get('hero_banner_url') as string)?.trim() || null;
+  }
+  if (formData.has('about_banner_url')) {
+    const about_banner_url =
+      (formData.get('about_banner_url') as string)?.trim() || null;
+    updateData.about_banner_url = about_banner_url;
+    updateData.banner_url = about_banner_url;
+  }
+  if (formData.has('hero_slides')) {
+    const hero_slides_raw = (formData.get('hero_slides') as string)?.trim();
+    if (hero_slides_raw) {
+      try {
+        updateData.hero_slides = JSON.parse(hero_slides_raw);
+      } catch {}
+    }
+  }
 
-  const res = await dbUpdateSiteSettings({
-    hero_banner_url,
-    about_banner_url,
-    banner_url: about_banner_url,
-  });
+  const res = await dbUpdateSiteSettings(updateData);
 
   if (res.ok) {
     await triggerOnDemandRevalidationAction('settings');
@@ -426,7 +601,30 @@ export async function saveBannersAction(formData: FormData): Promise<{
   return {
     ok: res.ok,
     message: res.ok
-      ? 'Đã cập nhật thành công cả 2 vị trí Banner (Trang chủ & Trang giới thiệu)!'
+      ? 'Đã cập nhật thành công cấu hình Banner (Trang chủ & Trang giới thiệu)!'
+      : res.message,
+  };
+}
+
+export async function updateHeroSlidesAction(
+  slides: import('@/types/database').HeroSlide[]
+): Promise<{ ok: boolean; message: string }> {
+  if (!(await ensureAdmin())) {
+    return { ok: false, message: 'Không có quyền thực hiện' };
+  }
+
+  const res = await dbUpdateSiteSettings({
+    hero_slides: slides,
+  });
+
+  if (res.ok) {
+    await triggerOnDemandRevalidationAction('settings');
+    revalidatePath('/');
+  }
+  return {
+    ok: res.ok,
+    message: res.ok
+      ? 'Đã cập nhật 5 Banner Hệ Mặt Trời vào Database thành công!'
       : res.message,
   };
 }

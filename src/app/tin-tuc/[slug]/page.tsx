@@ -9,7 +9,8 @@ import {
 import QuoteForm from '@/components/QuoteForm';
 import { renderMarkdownOrHtml } from '@/lib/markdown';
 
-export const revalidate = 2592000;
+export const revalidate = 86400;
+export const dynamicParams = true;
 
 export async function generateStaticParams() {
   const posts = await getCachedPostsList();
@@ -112,7 +113,7 @@ export default async function BlogPostDetailPage({
           </div>
 
           <div
-            className="prose-content"
+            className="prose-content overflow-x-auto max-w-full"
             dangerouslySetInnerHTML={{
               __html: renderMarkdownOrHtml(post.content),
             }}

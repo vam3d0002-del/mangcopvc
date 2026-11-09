@@ -1,8 +1,7 @@
 import { MetadataRoute } from 'next';
 import { getCachedPostsList, getCachedProductsList } from '@/lib/cache';
 
-// Cache Sitemap 30 ngày, tự động làm mới ngay khi Admin đăng sản phẩm/bài viết mới
-export const revalidate = 2592000;
+export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl =

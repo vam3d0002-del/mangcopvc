@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, CheckCircle2 } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { submitInquiryAction } from '@/app/actions/admin';
 
 export default function QuoteForm({ defaultProduct = '' }: { defaultProduct?: string }) {
@@ -44,7 +44,11 @@ export default function QuoteForm({ defaultProduct = '' }: { defaultProduct?: st
               : 'bg-rose-50 text-rose-800 border border-rose-200'
           }`}
         >
-          <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+          {status.ok ? (
+            <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
+          ) : (
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+          )}
           <span>{status.message}</span>
         </div>
       )}

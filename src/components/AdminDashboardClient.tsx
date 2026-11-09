@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -21,11 +21,13 @@ import {
   Download,
   Edit3,
   ExternalLink,
+  Factory,
   FileText,
   Folder,
   FolderTree,
   Image as ImageIcon,
   Key,
+  Layers,
   LayoutGrid,
   Lock,
   LogOut,
@@ -41,12 +43,17 @@ import {
   Upload,
   UploadCloud,
   Users,
+  Video,
+  Play,
+  Share2,
+  Globe,
   X,
   Zap,
 } from 'lucide-react';
 import {
   checkSupabaseTablesAction,
   deleteCategoryAction,
+  deleteIndustryAction,
   deleteInquiryAction,
   deletePostAction,
   deleteProductAction,
@@ -56,14 +63,18 @@ import {
   loginAdminAction,
   logoutAdminAction,
   saveCategoryAction,
+  saveIndustryAction,
   savePostAction,
   saveProductAction,
   saveSiteSettingsAction,
+  saveWebsiteLinksAction,
   saveBannersAction,
+  updateHeroSlidesAction,
   saveGoogleDriveConfigAction,
   testGoogleDriveConnectionAction,
   triggerManualDriveBackupAction,
   seedInitialDataAction,
+  toggleProductHomeAction,
   triggerOnDemandRevalidationAction,
   updateInquiryStatusAction,
 } from '@/app/actions/admin';
@@ -75,10 +86,13 @@ import MarkdownEditor from '@/components/MarkdownEditor';
 import {
   Category,
   GoogleDriveBackupConfig,
+  HeroSlide,
+  Industry,
   Inquiry,
   PostDetail,
   ProductDetail,
   SiteSettings,
+  WebLink,
 } from '@/types/database';
 
 interface Props {
@@ -86,9 +100,11 @@ interface Props {
   supabaseConfigured: boolean;
   siteSettings: SiteSettings;
   categories: Category[];
+  industries?: Industry[];
   products: ProductDetail[];
   posts: PostDetail[];
   inquiries: Inquiry[];
+  links?: WebLink[];
 }
 
 type AdminSection =
@@ -96,7 +112,9 @@ type AdminSection =
   | 'leads'
   | 'products'
   | 'categories'
+  | 'industries'
   | 'posts'
+  | 'sliders'
   | 'banners'
   | 'webp'
   | 'settings'
@@ -208,9 +226,11 @@ export default function AdminDashboardClient({
   supabaseConfigured,
   siteSettings,
   categories,
+  industries = [],
   products,
   posts,
   inquiries,
+  links = [],
 }: Props) {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
@@ -221,7 +241,30 @@ export default function AdminDashboardClient({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProductCategory, setSelectedProductCategory] = useState<string>('all');
+  const [selectedProductIndustry, setSelectedProductIndustry] = useState<string>('all');
+  const [selectedHomeFilter, setSelectedHomeFilter] = useState<'all' | 'home' | 'hidden'>('all');
   const [selectedPostCategory, setSelectedPostCategory] = useState<string>('all');
+
+  // Links & Videos state - Lấy trực tiếp từ database Supabase
+  const [linksList, setLinksList] = useState<WebLink[]>(() => {
+    if (links && links.length > 0) return links;
+    if (siteSettings.links && siteSettings.links.length > 0) return siteSettings.links;
+    return [];
+  });
+
+  useEffect(() => {
+    if (links && links.length > 0) {
+      setLinksList(links);
+    }
+  }, [links]);
+
+  // Products & Industries states
+  const [productsList, setProductsList] = useState<ProductDetail[]>(products);
+  const [togglingHomeId, setTogglingHomeId] = useState<string | null>(null);
+  const [industriesList, setIndustriesList] = useState<Industry[]>(industries);
+  const [editingIndustry, setEditingIndustry] = useState<Industry | null>(null);
+  const [industryThumbUrl, setIndustryThumbUrl] = useState<string>('');
+  const [indFormKey, setIndFormKey] = useState(0);
 
   // Pagination states
   const [prodPage, setProdPage] = useState(1);
@@ -229,9 +272,11 @@ export default function AdminDashboardClient({
   const [postPage, setPostPage] = useState(1);
   const [postPageSize, setPostPageSize] = useState(6);
   const [catPage, setCatPage] = useState(1);
+  const [indPage, setIndPage] = useState(1);
   const [inqPage, setInqPage] = useState(1);
 
   const CAT_PAGE_SIZE = 5;
+  const IND_PAGE_SIZE = 6;
   const INQ_PAGE_SIZE = 8;
 
   function selectSection(section: AdminSection) {
@@ -268,6 +313,11 @@ export default function AdminDashboardClient({
     siteSettings.about_banner_url || siteSettings.banner_url || '/media/banners/banner-mang-co.webp'
   );
 
+  // Hero Slides state - Lấy trực tiếp từ database Supabase
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(() => {
+    return siteSettings.hero_slides || [];
+  });
+
   // WebP compression & upload state
   const [uploadingImage, setUploadingImage] = useState(false);
   const [compressionStats, setCompressionStats] = useState<{
@@ -294,6 +344,30 @@ export default function AdminDashboardClient({
     }).format(now);
   });
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setProductsList(products);
+  }, [products]);
+
+  useEffect(() => {
+    if (industries) setIndustriesList(industries);
+  }, [industries]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const sec = params.get('section') || params.get('tab');
+      if (
+        sec &&
+        ['dashboard', 'leads', 'products', 'categories', 'industries', 'posts', 'banners', 'webp', 'settings', 'cache'].includes(sec)
+      ) {
+        setActiveSection(sec as AdminSection);
+      }
+      if (window.location.hash === '#banners') {
+        setActiveSection('banners');
+      }
+    }
+  }, []);
 
   async function loadStorageOverview() {
     setLoadingStorage(true);
@@ -347,8 +421,11 @@ export default function AdminDashboardClient({
 
     // 2. Banner và Site Settings
     if (siteSettings.banner_url) registerUsage(siteSettings.banner_url, 'Banner thương hiệu');
-    if (siteSettings.hero_banner_url) registerUsage(siteSettings.hero_banner_url, 'Banner Trang Chủ (Hero)');
-    if (siteSettings.about_banner_url) registerUsage(siteSettings.about_banner_url, 'Banner Trang Giới Thiệu');
+    if (siteSettings.hero_banner_url) registerUsage(siteSettings.hero_banner_url, 'Ảnh Hero Trang Giới Thiệu');
+    if (siteSettings.about_banner_url) registerUsage(siteSettings.about_banner_url, 'Banner Dải Ngang Giới Thiệu');
+    (siteSettings.hero_slides || heroSlides || []).forEach((slide) => {
+      if (slide.image_url) registerUsage(slide.image_url, `Banner Hệ Mặt Trời: ${slide.name}`);
+    });
 
     // 3. Danh mục
     categories.forEach((cat) => {
@@ -488,9 +565,11 @@ export default function AdminDashboardClient({
       | 'product'
       | 'post'
       | 'category'
+      | 'industry'
       | 'hero-banner'
       | 'about-banner'
-      | 'standalone',
+      | 'standalone'
+      | `slide-${number}`,
     customFolder?: string,
     customDate?: string
   ) {
@@ -510,11 +589,13 @@ export default function AdminDashboardClient({
         customFolder ||
         (targetField === 'category'
           ? 'categories'
+          : targetField === 'industry'
+          ? 'industries'
           : targetField === 'product'
           ? 'products'
           : targetField === 'post'
           ? 'posts'
-          : targetField === 'hero-banner' || targetField === 'about-banner'
+          : targetField === 'hero-banner' || targetField === 'about-banner' || targetField.startsWith('slide-')
           ? 'banners'
           : selectedStorageFolder || 'uploads');
       formData.append('folder', folder);
@@ -543,8 +624,19 @@ export default function AdminDashboardClient({
         if (targetField === 'product') setProductThumbUrl(data.url);
         if (targetField === 'post') setPostThumbUrl(data.url);
         if (targetField === 'category') setCategoryThumbUrl(data.url);
+        if (targetField === 'industry') setIndustryThumbUrl(data.url);
         if (targetField === 'hero-banner') setHeroBannerUrl(data.url);
         if (targetField === 'about-banner') setAboutBannerUrl(data.url);
+        if (targetField.startsWith('slide-')) {
+          const slideIdx = parseInt(targetField.replace('slide-', ''), 10);
+          if (!isNaN(slideIdx)) {
+            setHeroSlides((prev) => {
+              const next = [...prev];
+              if (next[slideIdx]) next[slideIdx] = { ...next[slideIdx], image_url: data.url };
+              return next;
+            });
+          }
+        }
 
         setNotice({
           ok: true,
@@ -592,6 +684,65 @@ export default function AdminDashboardClient({
     if (res.ok) {
       if (editingProduct?.id === idOrSlug) setEditingProduct(null);
       router.refresh();
+    }
+  }
+
+  async function handleToggleProductHome(targetProd: ProductDetail) {
+    const nextState = !targetProd.is_featured;
+    setTogglingHomeId(targetProd.id);
+
+    // Cập nhật optimistic ngay lập tức theo đúng quy tắc tối đa 8 sản phẩm (FIFO tuần tự)
+    setProductsList((prev) => {
+      if (!nextState) {
+        return prev.map((item) =>
+          item.id === targetProd.id
+            ? { ...item, is_featured: false, home_order: 0 }
+            : item
+        );
+      }
+
+      const activeList = prev
+        .filter((item) => item.is_featured && item.id !== targetProd.id)
+        .sort((a, b) => (a.home_order || 999999) - (b.home_order || 999999));
+
+      const maxHomeOrder = prev.reduce(
+        (max, item) => Math.max(max, Number(item.home_order) || 0),
+        0
+      );
+      const nextHomeOrder = maxHomeOrder + 1;
+
+      const idsToDisable = new Set<string>();
+      if (activeList.length >= 8) {
+        const overflowCount = activeList.length - 8 + 1;
+        for (let i = 0; i < overflowCount; i++) {
+          idsToDisable.add(activeList[i].id);
+        }
+      }
+
+      return prev.map((item) => {
+        if (item.id === targetProd.id) {
+          return { ...item, is_featured: true, home_order: nextHomeOrder };
+        }
+        if (idsToDisable.has(item.id)) {
+          return { ...item, is_featured: false, home_order: 0 };
+        }
+        return item;
+      });
+    });
+
+    try {
+      const res = await toggleProductHomeAction(targetProd.id, nextState);
+      setNotice(res);
+      if (res.ok) {
+        router.refresh();
+      }
+    } catch {
+      setNotice({
+        ok: false,
+        message: 'Lỗi khi cập nhật trạng thái hiển thị Trang chủ',
+      });
+    } finally {
+      setTogglingHomeId(null);
     }
   }
 
@@ -654,6 +805,34 @@ export default function AdminDashboardClient({
     if (res.ok) router.refresh();
   }
 
+  async function handleSaveIndustry(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formElement = e.currentTarget;
+    setLoading(true);
+    const fd = new FormData(formElement);
+    const res = await saveIndustryAction(fd);
+    setNotice(res);
+    setLoading(false);
+    if (res.ok) {
+      try {
+        formElement.reset();
+      } catch {}
+      setEditingIndustry(null);
+      setIndustryThumbUrl('');
+      setIndFormKey((k) => k + 1);
+      router.refresh();
+    }
+  }
+
+  async function handleDeleteIndustry(id: string, name: string) {
+    if (!window.confirm(`Xóa ngành nghề "${name}" khỏi Database?`)) return;
+    setLoading(true);
+    const res = await deleteIndustryAction(id);
+    setNotice(res);
+    setLoading(false);
+    if (res.ok) router.refresh();
+  }
+
   async function handleSaveSettings(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -664,11 +843,48 @@ export default function AdminDashboardClient({
     if (res.ok) router.refresh();
   }
 
+  async function handleSaveLinks(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const fd = new FormData(e.currentTarget);
+    const res = await saveWebsiteLinksAction(fd);
+    setNotice(res);
+    setLoading(false);
+    if (res.ok) {
+      const fb = (fd.get('link_facebook') as string)?.trim() || 'https://facebook.com';
+      const tt = (fd.get('link_tiktok') as string)?.trim() || 'https://tiktok.com';
+      const yt = (fd.get('link_youtube') as string)?.trim() || 'https://youtube.com';
+      const tw = (fd.get('link_twitter') as string)?.trim() || 'https://twitter.com';
+      const v1 = (fd.get('video_intro_url') as string)?.trim() || 'https://www.youtube.com/watch?v=lDzM8QeIuGs';
+      const v2 = (fd.get('video_factory_url') as string)?.trim() || 'https://www.youtube.com/embed/lDzM8QeIuGs?si=6N-vPjF-LDRJ9N42';
+      setLinksList([
+        { id: 'facebook', title: 'Facebook Fanpage', url: fb, type: 'social', description: 'Nút icon Facebook trên thanh đầu trang (Header)', updated_at: new Date().toISOString() },
+        { id: 'tiktok', title: 'Kênh TikTok Xưởng', url: tt, type: 'social', description: 'Nút icon TikTok trên thanh đầu trang (Header)', updated_at: new Date().toISOString() },
+        { id: 'youtube', title: 'Kênh YouTube Doanh Nghiệp', url: yt, type: 'social', description: 'Nút icon YouTube trên thanh đầu trang (Header)', updated_at: new Date().toISOString() },
+        { id: 'twitter', title: 'Twitter / X', url: tw, type: 'social', description: 'Nút icon Twitter/X trên thanh đầu trang (Header)', updated_at: new Date().toISOString() },
+        { id: 'video_intro', title: 'Video 1: Giới Thiệu Xưởng (Mục Về Chúng Tôi)', url: v1, type: 'video', description: 'Video giới thiệu xưởng sản xuất ở Mục 2 trên Trang Chủ', updated_at: new Date().toISOString() },
+        { id: 'video_factory', title: 'Video 2: Vận Hành Nhà Xưởng (Mục Quy Trình)', url: v2, type: 'video', description: 'Khung video nhúng phát trực tiếp ở Mục 11 trên Trang Chủ', updated_at: new Date().toISOString() },
+      ]);
+      router.refresh();
+    }
+  }
+
   async function handleSaveBanners(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
+    fd.set('hero_banner_url', heroBannerUrl);
+    fd.set('about_banner_url', aboutBannerUrl);
     const res = await saveBannersAction(fd);
+    setNotice(res);
+    setLoading(false);
+    if (res.ok) router.refresh();
+  }
+
+  async function handleSaveSliders(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const res = await updateHeroSlidesAction(heroSlides);
     setNotice(res);
     setLoading(false);
     if (res.ok) router.refresh();
@@ -913,7 +1129,18 @@ export default function AdminDashboardClient({
     return <AdminLoginForm />;
   }
 
-  const filteredProducts = products.filter((p) => {
+  // Danh sách 8 sản phẩm đang hiển thị ở Trang chủ (sắp xếp theo thứ tự bật home_order tăng dần)
+  const featuredHomeProducts = productsList
+    .filter((p) => p.is_featured)
+    .sort((a, b) => (a.home_order || 999999) - (b.home_order || 999999))
+    .slice(0, 8);
+
+  const homeSlotMap = new Map<string, number>();
+  featuredHomeProducts.forEach((fp, idx) => {
+    homeSlotMap.set(fp.id, idx + 1);
+  });
+
+  const filteredProducts = productsList.filter((p) => {
     const q = searchQuery.toLowerCase().trim();
     const catName = categories.find((c) => c.id === p.category_id)?.name || '';
     const matchesSearch =
@@ -927,11 +1154,26 @@ export default function AdminDashboardClient({
       selectedProductCategory === 'all' ||
       p.category_id === selectedProductCategory;
 
-    return matchesSearch && matchesCategory;
+    const matchesIndustry =
+      selectedProductIndustry === 'all' ||
+      p.industry_id === selectedProductIndustry ||
+      (p.industry_ids && p.industry_ids.includes(selectedProductIndustry));
+
+    const matchesHome =
+      selectedHomeFilter === 'all' ||
+      (selectedHomeFilter === 'home' && Boolean(p.is_featured)) ||
+      (selectedHomeFilter === 'hidden' && !p.is_featured);
+
+    return matchesSearch && matchesCategory && matchesIndustry && matchesHome;
   });
   const paginatedProducts = filteredProducts.slice(
     (prodPage - 1) * prodPageSize,
     prodPage * prodPageSize
+  );
+
+  const paginatedIndustries = industriesList.slice(
+    (indPage - 1) * IND_PAGE_SIZE,
+    indPage * IND_PAGE_SIZE
   );
 
   const filteredPosts = posts.filter((p) => {
@@ -965,7 +1207,7 @@ export default function AdminDashboardClient({
       {/* =====================================================================
           MOBILE & TABLET STICKY TOP BAR (< lg)
          ===================================================================== */}
-      <header className="lg:hidden h-14 bg-[#1d4ed8] border-b border-blue-800 px-4 flex items-center justify-between shrink-0 z-30 text-white shadow-sm">
+      <header className="lg:hidden h-14 bg-gradient-to-r from-[#072554] via-[#0c4a8a] to-[#072554] border-b border-[#041733] px-4 flex items-center justify-between shrink-0 z-30 text-white shadow-md">
         <div className="flex items-center gap-2.5">
           <button
             suppressHydrationWarning
@@ -991,7 +1233,7 @@ export default function AdminDashboardClient({
           <Link
             href="/"
             target="_blank"
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/25 bg-white/15 hover:bg-white/25 text-white font-bold text-[11px] transition"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-sky-300/30 bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] hover:brightness-110 text-white font-bold text-[11px] transition shadow-xs"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             <span>Xem Web</span>
@@ -1008,10 +1250,10 @@ export default function AdminDashboardClient({
       )}
 
       {/* =====================================================================
-          LEFT SIDEBAR (DRAWER ON MOBILE, FIXED ON DESKTOP - BLUE BRAND THEME)
+          LEFT SIDEBAR (DRAWER ON MOBILE, FIXED ON DESKTOP - HOME HEADER THEME)
          ===================================================================== */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 lg:w-64 bg-gradient-to-b from-[#2563eb] via-[#1d4ed8] to-[#1e3a8a] text-white border-r border-blue-800/60 flex flex-col justify-between shrink-0 select-none transform transition-transform duration-200 lg:static lg:translate-x-0 shadow-xl ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 lg:w-64 bg-gradient-to-b from-[#072554] via-[#0c4a8a] to-[#072554] text-white border-r border-[#041733] flex flex-col justify-between shrink-0 select-none transform transition-transform duration-200 lg:static lg:translate-x-0 shadow-2xl ${
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -1035,7 +1277,7 @@ export default function AdminDashboardClient({
                 <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-white/15 text-white border border-white/25">
                   HỆ THỐNG QUẢN TRỊ
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-100 border border-white/15">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-950/70 text-sky-200 border border-sky-400/30">
                   v2.0
                 </span>
               </div>
@@ -1053,7 +1295,7 @@ export default function AdminDashboardClient({
 
           {/* Group 1: TỔNG QUAN */}
           <div>
-            <div className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-200/80">
+            <div className="px-3 mb-2 text-[11px] font-black uppercase tracking-wider text-sky-300">
               TỔNG QUAN
             </div>
             <nav className="space-y-1">
@@ -1062,8 +1304,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('dashboard')}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'dashboard'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <LayoutGrid className="w-4 h-4 shrink-0" />
@@ -1075,8 +1317,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('leads')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'leads'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
@@ -1087,8 +1329,8 @@ export default function AdminDashboardClient({
                   <span
                     className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded-full ${
                       activeSection === 'leads'
-                        ? 'bg-[#2563eb] text-white'
-                        : 'bg-white text-[#1d4ed8]'
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-sky-950/70 text-sky-200 border border-sky-400/25'
                     }`}
                   >
                     {newLeadsCount}
@@ -1100,7 +1342,7 @@ export default function AdminDashboardClient({
 
           {/* Group 2: SẢN PHẨM & BÁO GIÁ */}
           <div>
-            <div className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-200/80">
+            <div className="px-3 mb-2 text-[11px] font-black uppercase tracking-wider text-sky-300">
               SẢN PHẨM &amp; QUY CÁCH
             </div>
             <nav className="space-y-1">
@@ -1109,8 +1351,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('products')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'products'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
@@ -1120,8 +1362,8 @@ export default function AdminDashboardClient({
                 <span
                   className={`text-[11px] font-bold ${
                     activeSection === 'products'
-                      ? 'text-[#2563eb]'
-                      : 'text-blue-200'
+                      ? 'text-white'
+                      : 'text-sky-300'
                   }`}
                 >
                   {products.length}
@@ -1133,22 +1375,46 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('categories')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'categories'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
                   <FolderTree className="w-4 h-4 shrink-0" />
-                  <span>Danh Mục Dòng Màng</span>
+                  <span>Thể Loại / Kiểu Dáng</span>
                 </span>
                 <span
                   className={`text-[11px] font-bold ${
                     activeSection === 'categories'
-                      ? 'text-[#2563eb]'
-                      : 'text-blue-200'
+                      ? 'text-white'
+                      : 'text-sky-300'
                   }`}
                 >
                   {categories.length}
+                </span>
+              </button>
+
+              <button
+                suppressHydrationWarning
+                onClick={() => selectSection('industries')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
+                  activeSection === 'industries'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <Factory className="w-4 h-4 shrink-0" />
+                  <span>Ngành Nghề Ứng Dụng</span>
+                </span>
+                <span
+                  className={`text-[11px] font-bold ${
+                    activeSection === 'industries'
+                      ? 'text-white'
+                      : 'text-sky-300'
+                  }`}
+                >
+                  {industriesList.length}
                 </span>
               </button>
             </nav>
@@ -1156,7 +1422,7 @@ export default function AdminDashboardClient({
 
           {/* Group 3: MARKETING & SHOWCASE */}
           <div>
-            <div className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-200/80">
+            <div className="px-3 mb-2 text-[11px] font-black uppercase tracking-wider text-sky-300">
               MARKETING &amp; SHOWCASE
             </div>
             <nav className="space-y-1">
@@ -1165,8 +1431,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('posts')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'posts'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
@@ -1176,8 +1442,8 @@ export default function AdminDashboardClient({
                 <span
                   className={`text-[11px] font-bold ${
                     activeSection === 'posts'
-                      ? 'text-[#2563eb]'
-                      : 'text-blue-200'
+                      ? 'text-white'
+                      : 'text-sky-300'
                   }`}
                 >
                   {posts.length}
@@ -1186,15 +1452,50 @@ export default function AdminDashboardClient({
 
               <button
                 suppressHydrationWarning
-                onClick={() => selectSection('banners')}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
-                  activeSection === 'banners'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                onClick={() => selectSection('sliders')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
+                  activeSection === 'sliders'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <ImageIcon className="w-4 h-4 shrink-0" />
-                <span>Quản Lý Banner (2 vị trí)</span>
+                <span className="flex items-center gap-3">
+                  <Layers className="w-4 h-4 shrink-0" />
+                  <span>Quản Lý Slider</span>
+                </span>
+                <span
+                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                    activeSection === 'sliders'
+                      ? 'bg-white/20 text-white border border-white/30'
+                      : 'bg-sky-950/70 text-sky-200 border border-sky-400/25'
+                  }`}
+                >
+                  5 slide
+                </span>
+              </button>
+
+              <button
+                suppressHydrationWarning
+                onClick={() => selectSection('banners')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
+                  activeSection === 'banners'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <ImageIcon className="w-4 h-4 shrink-0" />
+                  <span>Quản Lý Banner</span>
+                </span>
+                <span
+                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                    activeSection === 'banners'
+                      ? 'bg-white/20 text-white border border-white/30'
+                      : 'bg-sky-950/70 text-sky-200 border border-sky-400/25'
+                  }`}
+                >
+                  2 banner
+                </span>
               </button>
 
               <button
@@ -1202,8 +1503,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('webp')}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'webp'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <Folder className="w-4 h-4 shrink-0" />
@@ -1214,7 +1515,7 @@ export default function AdminDashboardClient({
 
           {/* Group 4: HỆ THỐNG */}
           <div>
-            <div className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-200/80">
+            <div className="px-3 mb-2 text-[11px] font-black uppercase tracking-wider text-sky-300">
               HỆ THỐNG &amp; CẤU HÌNH
             </div>
             <nav className="space-y-1">
@@ -1223,8 +1524,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('settings')}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'settings'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <Settings className="w-4 h-4 shrink-0" />
@@ -1236,8 +1537,8 @@ export default function AdminDashboardClient({
                 onClick={() => selectSection('cache')}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                   activeSection === 'cache'
-                    ? 'bg-white text-[#1d4ed8] shadow-md font-extrabold'
-                    : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black shadow-md shadow-black/25 border border-sky-300/40'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <Archive className="w-4 h-4 shrink-0" />
@@ -1248,9 +1549,9 @@ export default function AdminDashboardClient({
         </div>
 
         {/* Bottom User Profile & Connection Card */}
-        <div className="p-3.5 border-t border-white/15 bg-blue-950/30 space-y-3">
+        <div className="p-3.5 border-t border-sky-400/20 bg-[#041733]/80 space-y-3">
           <div className="bg-white/10 rounded-xl border border-white/15 p-2.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white text-[#1d4ed8] font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs border border-sky-300/30">
               TP
             </div>
             <div className="min-w-0 flex-1">
@@ -1264,7 +1565,7 @@ export default function AdminDashboardClient({
           </div>
 
           <div className="flex items-center justify-between px-1 text-[11px]">
-            <span className="text-blue-200 font-medium">Database:</span>
+            <span className="text-sky-200 font-medium">Database:</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 font-bold border border-emerald-400/30">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {supabaseConfigured ? 'Supabase Connected' : 'Local Mode'}
@@ -1283,7 +1584,7 @@ export default function AdminDashboardClient({
             <Link
               href="/"
               target="_blank"
-              className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg border border-white/20 bg-white text-[#1d4ed8] hover:bg-blue-50 font-bold text-[11px] transition"
+              className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg border border-sky-300/30 bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] hover:brightness-110 text-white font-bold text-[11px] transition shadow-xs"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Xem Web</span>
@@ -1350,7 +1651,7 @@ export default function AdminDashboardClient({
                     <span>Cập nhật</span>
                   </button>
                   <button suppressHydrationWarning onClick={() => setActiveSection('leads')}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-xs transition"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white text-xs font-black shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all"
                   >
                     <span>Xem tất cả leads</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -1463,10 +1764,29 @@ export default function AdminDashboardClient({
                       </div>
                       <div>
                         <div className="text-xs font-extrabold text-slate-900">
-                          Danh Mục Dòng Màng
+                          Thể Loại / Kiểu Dáng
                         </div>
                         <div className="text-[11px] text-slate-500 mt-0.5">
-                          {categories.length} Nhóm trụ cột
+                          {categories.length} Nhóm quy cách
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition" />
+                  </button>
+
+                  <button suppressHydrationWarning onClick={() => setActiveSection('industries')}
+                    className="bg-white rounded-2xl border border-slate-200/90 hover:border-blue-500 p-5 flex items-center justify-between text-left transition shadow-2xs hover:shadow-md group"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                        <Factory className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-extrabold text-slate-900">
+                          Ngành Nghề Ứng Dụng
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          {industriesList.length} Lĩnh vực F&amp;B, OCOP...
                         </div>
                       </div>
                     </div>
@@ -1790,6 +2110,50 @@ export default function AdminDashboardClient({
                     })}
                   </select>
 
+                  {/* Lọc theo ngành nghề */}
+                  <select
+                    suppressHydrationWarning
+                    value={selectedProductIndustry}
+                    onChange={(e) => {
+                      setSelectedProductIndustry(e.target.value);
+                      setProdPage(1);
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white text-slate-700 focus:border-blue-500 focus:outline-none cursor-pointer shadow-2xs"
+                  >
+                    <option value="all">🏭 Tất cả ngành nghề ({products.length})</option>
+                    {industriesList.map((ind) => {
+                      const count = products.filter(
+                        (p) =>
+                          p.industry_id === ind.id ||
+                          (p.industry_ids && p.industry_ids.includes(ind.id))
+                      ).length;
+                      return (
+                        <option key={ind.id} value={ind.id}>
+                          {ind.icon ? `${ind.icon} ` : ''}{ind.name} ({count})
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {/* Lọc theo hiển thị Trang chủ */}
+                  <select
+                    suppressHydrationWarning
+                    value={selectedHomeFilter}
+                    onChange={(e) => {
+                      setSelectedHomeFilter(e.target.value as 'all' | 'home' | 'hidden');
+                      setProdPage(1);
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-blue-200 text-xs font-extrabold bg-blue-50/70 text-[#1d4ed8] focus:border-blue-500 focus:outline-none cursor-pointer shadow-2xs"
+                  >
+                    <option value="all">🏠 Tất cả TT Trang chủ ({productsList.length})</option>
+                    <option value="home">
+                      ⭐ Đang hiện ở Trang chủ ({featuredHomeProducts.length}/8)
+                    </option>
+                    <option value="hidden">
+                      ⚪ Chưa hiện ở Trang chủ ({productsList.length - featuredHomeProducts.length})
+                    </option>
+                  </select>
+
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input suppressHydrationWarning type="text"
@@ -1807,11 +2171,89 @@ export default function AdminDashboardClient({
                       setProductThumbUrl('/media/products/mang-co-pvc-cuon.webp');
                       setShowProductForm(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-xs transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white text-xs font-black shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Thêm sản phẩm mới</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Thanh trạng thái 8 vị trí hiển thị ở Trang chủ (FIFO Queue #1 -> #8) */}
+              <div className="bg-gradient-to-r from-[#eff6ff] via-white to-[#f0f9ff] rounded-2xl border border-blue-200/90 p-4 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-[#2563eb] text-white text-[11px] font-extrabold shadow-2xs">
+                      HIỂN THỊ Ở TRANG CHỦ: {featuredHomeProducts.length} / 8 SẢN PHẨM
+                    </span>
+                    <span className="text-xs font-semibold text-slate-600">
+                      Khi đã đủ 8 sản phẩm, bật sản phẩm thứ 9 sẽ tự động tắt tuần tự sản phẩm đứng vị trí <strong>#1</strong> và đưa sản phẩm mới vào vị trí <strong>#8</strong>.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                  {Array.from({ length: 8 }).map((_, idx) => {
+                    const slotProd = featuredHomeProducts[idx];
+                    return slotProd ? (
+                      <div
+                        key={slotProd.id}
+                        className={`relative group rounded-xl border p-2 bg-white flex flex-col justify-between gap-1.5 transition ${
+                          idx === 0
+                            ? 'border-amber-300 ring-1 ring-amber-200/70'
+                            : 'border-blue-200/80'
+                        }`}
+                        title={
+                          idx === 0
+                            ? `Vị trí #1: ${slotProd.name} (Sẽ tự động tắt đầu tiên nếu bật thêm sản phẩm thứ 9)`
+                            : `Vị trí #${idx + 1}: ${slotProd.name}`
+                        }
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span
+                            className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                              idx === 0
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-blue-100 text-[#1d4ed8]'
+                            }`}
+                          >
+                            #{idx + 1}
+                            {idx === 0 ? ' · Tự tắt tiếp' : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleProductHome(slotProd)}
+                            className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition px-1"
+                            title="Tắt hiển thị trang chủ"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={slotProd.thumbnail_url}
+                            alt={slotProd.name}
+                            className="w-8 h-8 rounded-lg object-contain bg-[#f1f4f9] border border-slate-200 shrink-0"
+                          />
+                          <div className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-tight">
+                            {slotProd.name}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        key={`empty-slot-${idx}`}
+                        className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-2.5 flex flex-col items-center justify-center text-center min-h-[68px]"
+                      >
+                        <span className="text-[10px] font-extrabold text-slate-400">
+                          Ô #{idx + 1} trống
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Bật công tắc bên dưới
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1842,7 +2284,7 @@ export default function AdminDashboardClient({
                     <input suppressHydrationWarning type="hidden" name="id" value={editingProduct.id} />
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Tên sản phẩm *
@@ -1857,15 +2299,31 @@ export default function AdminDashboardClient({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Danh mục dòng màng
+                        Thể loại / Kiểu dáng
                       </label>
                       <select suppressHydrationWarning name="category_id"
-                        defaultValue={editingProduct?.category_id || 'cat-pvc'}
+                        defaultValue={editingProduct?.category_id || categories[0]?.id || 'cat-thuc-pham'}
                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white"
                       >
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Ngành nghề ứng dụng
+                      </label>
+                      <select suppressHydrationWarning name="industry_id"
+                        defaultValue={editingProduct?.industry_id || ''}
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white"
+                      >
+                        <option value="">-- Chọn ngành nghề --</option>
+                        {industriesList.map((ind) => (
+                          <option key={ind.id} value={ind.id}>
+                            {ind.icon ? `${ind.icon} ` : ''}{ind.name}
                           </option>
                         ))}
                       </select>
@@ -1989,21 +2447,24 @@ export default function AdminDashboardClient({
                     folder="products"
                   />
 
-                  <div className="flex items-center justify-between pt-2">
-                    <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                    <label className="flex items-center gap-2.5 text-xs font-bold text-slate-800 bg-blue-50/80 border border-blue-200 px-3.5 py-2.5 rounded-xl cursor-pointer">
                       <input suppressHydrationWarning type="checkbox"
                         name="is_featured"
                         value="true"
                         defaultChecked={
-                          editingProduct ? editingProduct.is_featured : true
+                          editingProduct ? editingProduct.is_featured : false
                         }
+                        className="w-4 h-4 accent-[#2563eb] rounded cursor-pointer"
                       />
-                      <span>Hiển thị nổi bật ngoài Trang chủ</span>
+                      <span>
+                        Hiển thị ở Trang chủ (Tối đa 8 SP — Nếu đã mở đủ 8 SP, bật thêm SP thứ 9 sẽ tự động tắt tuần tự SP đầu tiên)
+                      </span>
                     </label>
 
                     <button suppressHydrationWarning type="submit"
                       disabled={loading || uploadingImage}
-                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-sm transition"
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all"
                     >
                       {loading
                         ? 'Đang lưu vào Database...'
@@ -2023,6 +2484,7 @@ export default function AdminDashboardClient({
                       <tr className="border-b border-slate-100 text-[11px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-50/50">
                         <th className="py-3.5 px-6">SẢN PHẨM</th>
                         <th className="py-3.5 px-4">THỂ LOẠI</th>
+                        <th className="py-3.5 px-4 text-center">HIỂN THỊ TRANG CHỦ (TỐI ĐA 8)</th>
                         <th className="py-3.5 px-4">MÃ SKU</th>
                         <th className="py-3.5 px-4">ĐƠN GIÁ HIỂN THỊ</th>
                         <th className="py-3.5 px-4">FILE ẢNH WEBP</th>
@@ -2030,14 +2492,17 @@ export default function AdminDashboardClient({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
-                      {paginatedProducts.map((p) => (
+                      {paginatedProducts.map((p) => {
+                        const homeSlot = homeSlotMap.get(p.id);
+                        const isHomeActive = Boolean(p.is_featured && homeSlot);
+                        return (
                         <tr key={p.id} className="hover:bg-slate-50/80">
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3.5">
                               <img
                                 src={p.thumbnail_url}
                                 alt={p.name}
-                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                                className="w-12 h-12 rounded-xl object-contain bg-[#f1f4f9] border border-slate-200 shrink-0"
                               />
                               <div>
                                 <div className="font-extrabold text-slate-900 text-sm">
@@ -2050,9 +2515,60 @@ export default function AdminDashboardClient({
                             </div>
                           </td>
                           <td className="py-4 px-4">
-                            <span className="inline-block px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] whitespace-nowrap border border-blue-100">
-                              {categories.find((c) => c.id === p.category_id)?.name || 'Màng co'}
-                            </span>
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] whitespace-nowrap border border-blue-100">
+                                {categories.find((c) => c.id === p.category_id)?.name || 'Màng co'}
+                              </span>
+                              {p.industry_id && (
+                                <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] whitespace-nowrap border border-emerald-100">
+                                  {industriesList.find((i) => i.id === p.industry_id)?.icon || '🏭'}{' '}
+                                  {industriesList.find((i) => i.id === p.industry_id)?.name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <div className="inline-flex flex-col items-center gap-1">
+                              <button
+                                suppressHydrationWarning
+                                type="button"
+                                disabled={togglingHomeId === p.id}
+                                onClick={() => handleToggleProductHome(p)}
+                                role="switch"
+                                aria-checked={isHomeActive}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                                  isHomeActive ? 'bg-[#2563eb]' : 'bg-slate-200'
+                                }`}
+                                title={
+                                  isHomeActive
+                                    ? `Đang hiển thị ở Trang chủ (Vị trí #${homeSlot}/8) — Bấm để tắt`
+                                    : featuredHomeProducts.length >= 8
+                                      ? `Bấm để bật hiển thị ở Trang chủ (Sẽ tự động tắt SP #1: ${featuredHomeProducts[0]?.name || ''})`
+                                      : 'Bấm để bật hiển thị ở Trang chủ'
+                                }
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                    isHomeActive ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                              {isHomeActive ? (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                    homeSlot === 1
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : 'bg-blue-50 text-[#1d4ed8] border border-blue-200'
+                                  }`}
+                                >
+                                  Vị trí #{homeSlot}/8
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400">
+                                  Đang tắt
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-4 px-4 font-mono text-slate-600">
                             {p.sku || '—'}
@@ -2086,7 +2602,8 @@ export default function AdminDashboardClient({
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -2161,7 +2678,7 @@ export default function AdminDashboardClient({
                       setPostThumbUrl('/media/products/mang-co-pvc-cuon.webp');
                       setShowPostForm(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-xs transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white text-xs font-black shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Viết bài SEO mới</span>
@@ -2222,6 +2739,33 @@ export default function AdminDashboardClient({
                         <option value="Màng Co Nhiệt">Màng Co Nhiệt</option>
                         <option value="Màng Co PE">Màng Co PE</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Slug URL & Thời gian đọc */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-3">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Đường dẫn URL bài viết (Slug SEO)
+                      </label>
+                      <input suppressHydrationWarning type="text"
+                        name="slug"
+                        defaultValue={editingPost?.slug || ''}
+                        placeholder="Để trống sẽ tự động tạo theo tiêu đề bài viết"
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono text-slate-700 bg-slate-50/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Thời gian đọc (phút)
+                      </label>
+                      <input suppressHydrationWarning type="number"
+                        name="reading_time"
+                        defaultValue={editingPost?.reading_time || 4}
+                        min={1}
+                        max={60}
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono text-slate-700 bg-white"
+                      />
                     </div>
                   </div>
 
@@ -2289,7 +2833,7 @@ export default function AdminDashboardClient({
                   <div className="flex justify-end">
                     <button suppressHydrationWarning type="submit"
                       disabled={loading || uploadingImage}
-                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-sm transition"
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all"
                     >
                       {loading
                         ? 'Đang lưu vào Database...'
@@ -2518,7 +3062,7 @@ export default function AdminDashboardClient({
 
                 <button suppressHydrationWarning type="submit"
                   disabled={loading || uploadingImage}
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs transition"
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all cursor-pointer"
                 >
                   {editingCategory
                     ? '💾 Lưu Cập Nhật Danh Mục'
@@ -2584,6 +3128,286 @@ export default function AdminDashboardClient({
                   totalItems={categories.length}
                   pageSize={CAT_PAGE_SIZE}
                   onPageChange={setCatPage}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================
+              SECTION 5.1: NGÀNH NGHỀ ỨNG DỤNG (INDUSTRIES CRUD)
+             ================================================================= */}
+          {activeSection === 'industries' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <form
+                suppressHydrationWarning
+                key={editingIndustry ? editingIndustry.id : `new-ind-${indFormKey}`}
+                onSubmit={handleSaveIndustry}
+                className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xs h-fit"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    {editingIndustry
+                      ? `✏️ Sửa ngành nghề: ${editingIndustry.name}`
+                      : '➕ Thêm Ngành Nghề Ứng Dụng'}
+                  </h3>
+                  {editingIndustry && (
+                    <button
+                      suppressHydrationWarning
+                      type="button"
+                      onClick={() => {
+                        setEditingIndustry(null);
+                        setIndustryThumbUrl('');
+                        setIndFormKey((k) => k + 1);
+                      }}
+                      className="text-xs font-bold text-rose-600"
+                    >
+                      Hủy
+                    </button>
+                  )}
+                </div>
+
+                {editingIndustry && (
+                  <input
+                    suppressHydrationWarning
+                    type="hidden"
+                    name="id"
+                    value={editingIndustry.id}
+                  />
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tên ngành nghề ứng dụng *
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="text"
+                    name="name"
+                    required
+                    placeholder="VD: Nước Giải Khát & Đồ Uống"
+                    defaultValue={editingIndustry?.name || ''}
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Slug URL
+                    </label>
+                    <input
+                      suppressHydrationWarning
+                      type="text"
+                      name="slug"
+                      placeholder="nuoc-giai-khat-do-uong"
+                      defaultValue={editingIndustry?.slug || ''}
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Icon phụ (Emoji)
+                    </label>
+                    <input
+                      suppressHydrationWarning
+                      type="text"
+                      name="icon"
+                      placeholder="🥤, 🍪, 🌾, 🧊, 💄, 📦..."
+                      defaultValue={editingIndustry?.icon || '📦'}
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Hình ảnh đại diện ngành nghề */}
+                <div className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-3.5 space-y-2.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Hình ảnh đại diện bao bì ngành nghề (WebP)
+                  </label>
+
+                  <div className="flex items-center gap-3">
+                    {industryThumbUrl ? (
+                      <img
+                        src={industryThumbUrl}
+                        alt="Industry preview"
+                        className="w-16 h-16 rounded-xl object-cover border border-blue-300 bg-white shrink-0 shadow-xs"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 shrink-0 text-xl">
+                        {editingIndustry?.icon || '🏭'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        suppressHydrationWarning
+                        type="text"
+                        name="image_url"
+                        value={industryThumbUrl}
+                        onChange={(e) => setIndustryThumbUrl(e.target.value)}
+                        placeholder="/media/categories/mang-co-pvc.webp"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="cursor-pointer inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>
+                      {uploadingImage
+                        ? 'Đang đổi sang .webp...'
+                        : 'Chọn ảnh ngành nghề (Tự đổi .webp)'}
+                    </span>
+                    <input
+                      suppressHydrationWarning
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) convertAndUploadWebP(f, 'industry', 'industries');
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Nhãn nổi bật (Badge)
+                    </label>
+                    <input
+                      suppressHydrationWarning
+                      type="text"
+                      name="tag"
+                      placeholder="VD: Chống tràn 100%, Chuẩn FDA..."
+                      defaultValue={editingIndustry?.tag || ''}
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Thứ tự
+                    </label>
+                    <input
+                      suppressHydrationWarning
+                      type="number"
+                      name="sort_order"
+                      defaultValue={
+                        editingIndustry?.sort_order ?? industriesList.length + 1
+                      }
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Mô tả đặc thù bảo quản &amp; ứng dụng
+                  </label>
+                  <textarea
+                    suppressHydrationWarning
+                    name="description"
+                    rows={3}
+                    placeholder="Màng co bọc lốc lon, lốc chai nước ngọt..."
+                    defaultValue={editingIndustry?.description || ''}
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm"
+                  />
+                </div>
+
+                <button
+                  suppressHydrationWarning
+                  type="submit"
+                  disabled={loading || uploadingImage}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all cursor-pointer"
+                >
+                  {editingIndustry
+                    ? '💾 Lưu Cập Nhật Ngành Nghề'
+                    : '➕ Tạo Ngành Nghề Mới'}
+                </button>
+              </form>
+
+              <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
+                <h3 className="text-base font-extrabold text-slate-900 mb-4">
+                  Danh Sách Ngành Nghề Ứng Dụng ({industriesList.length})
+                </h3>
+                <div className="divide-y divide-slate-100">
+                  {paginatedIndustries.map((ind) => {
+                    const productCount = products.filter(
+                      (p) =>
+                        p.industry_id === ind.id ||
+                        (p.industry_ids && p.industry_ids.includes(ind.id))
+                    ).length;
+
+                    return (
+                      <div
+                        key={ind.id}
+                        className="py-4 flex items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          {ind.image_url ? (
+                            <img
+                              src={ind.image_url}
+                              alt={ind.name}
+                              className="w-14 h-14 rounded-xl object-cover border border-slate-200 bg-slate-50 shrink-0 shadow-2xs"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center text-2xl shrink-0">
+                              {ind.icon || '📦'}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-sm text-slate-900">
+                                #{ind.sort_order} · {ind.name}
+                              </span>
+                              {ind.tag && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  {ind.tag}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                                {productCount} sản phẩm
+                              </span>
+                            </div>
+                            <div className="text-xs text-blue-700 font-mono mt-0.5">
+                              /{ind.slug}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                              {ind.description}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            suppressHydrationWarning
+                            onClick={() => {
+                              setEditingIndustry(ind);
+                              setIndustryThumbUrl(ind.image_url || '');
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 hover:bg-amber-100"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            suppressHydrationWarning
+                            onClick={() =>
+                              handleDeleteIndustry(ind.id, ind.name)
+                            }
+                            className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200 hover:bg-rose-100"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <AdminPagination
+                  currentPage={indPage}
+                  totalItems={industriesList.length}
+                  pageSize={IND_PAGE_SIZE}
+                  onPageChange={setIndPage}
                 />
               </div>
             </div>
@@ -3113,157 +3937,806 @@ export default function AdminDashboardClient({
           )}
 
           {/* =================================================================
-              SECTION 7: CẤU HÌNH DOANH NGHIỆP (SITE SETTINGS)
+              SECTION 7: CẤU HÌNH DOANH NGHIỆP, 4 MẠNG XÃ HỘI & 2 VIDEO (LINKS TABLE)
              ================================================================= */}
           {activeSection === 'settings' && (
-            <form suppressHydrationWarning onSubmit={handleSaveSettings}
-              className="bg-white rounded-2xl border border-slate-200/80 p-6 md:p-8 shadow-2xs space-y-4 max-w-3xl"
-            >
-              <h2 className="text-lg font-extrabold text-slate-900 border-b border-slate-100 pb-3">
-                Cấu Hình Thông Tin Công Ty &amp; SEO Mặc Định
-              </h2>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+              {/* ================= CỘT TRÁI (xl:col-span-6): THÔNG TIN CÔNG TY & SEO ================= */}
+              <div className="xl:col-span-6 space-y-6">
+                  <form suppressHydrationWarning onSubmit={handleSaveSettings}
+                    className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs space-y-5"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                      <div>
+                        <h2 className="text-base md:text-lg font-black text-slate-900 flex items-center gap-2">
+                          <Factory className="w-5 h-5 text-blue-600" />
+                          <span>Thông Tin Doanh Nghiệp &amp; SEO</span>
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Hiển thị trên Header, Footer, Liên hệ và thẻ Meta Google
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-200/80">
+                        Cột 1: Công Ty
+                      </span>
+                    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Tên pháp lý công ty *
-                  </label>
-                  <input suppressHydrationWarning type="text"
-                    name="company_name"
-                    required
-                    defaultValue={siteSettings.company_name}
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                  />
+                    {/* Hàng 1: Tên pháp lý công ty (chiếm trọn 1 hàng) */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Tên pháp lý công ty *
+                      </label>
+                      <input suppressHydrationWarning type="text"
+                        name="company_name"
+                        required
+                        defaultValue={siteSettings.company_name}
+                        placeholder="CÔNG TY TNHH BAO BÌ THÀNH PHÁT"
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      />
+                    </div>
+
+                    {/* Hàng 2 & 3: 4 trường còn lại chia 1 hàng 2 ô (grid-cols-2) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Tên thương hiệu ngắn *
+                        </label>
+                        <input suppressHydrationWarning type="text"
+                          name="short_name"
+                          required
+                          defaultValue={siteSettings.short_name}
+                          placeholder="Bao Bì Thành Phát"
+                          className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Hotline hiển thị *
+                        </label>
+                        <input suppressHydrationWarning type="text"
+                          name="hotline"
+                          required
+                          defaultValue={siteSettings.hotline}
+                          placeholder="0935 909 747"
+                          className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Số Zalo kỹ thuật *
+                        </label>
+                        <input suppressHydrationWarning type="text"
+                          name="zalo"
+                          required
+                          defaultValue={siteSettings.zalo}
+                          placeholder="0935909747"
+                          className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Email tiếp nhận *
+                        </label>
+                        <input suppressHydrationWarning type="email"
+                          name="email"
+                          required
+                          defaultValue={siteSettings.email}
+                          placeholder="contact@mangcodanang.com"
+                          className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Địa chỉ văn phòng &amp; xưởng sản xuất *
+                      </label>
+                      <input suppressHydrationWarning type="text"
+                        name="address"
+                        required
+                        defaultValue={siteSettings.address}
+                        placeholder="12 Hà Đông 2, Phường Thanh Khê, TP Đà Nẵng"
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Tiêu đề SEO Trang chủ (Title Tag) *
+                      </label>
+                      <input suppressHydrationWarning type="text"
+                        name="seo_title"
+                        required
+                        defaultValue={siteSettings.seo_title}
+                        placeholder="Xưởng Sản Xuất Màng Co PVC, POF, PE Giá Sỉ - Bao Bì Thành Phát"
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Mô tả SEO Trang chủ (Meta Description) *
+                      </label>
+                      <textarea suppressHydrationWarning name="seo_description"
+                        rows={3}
+                        required
+                        defaultValue={siteSettings.seo_description}
+                        placeholder="Chuyên sản xuất màng co PVC, POF, PE bao bì bánh kẹo, hóa mỹ phẩm, thực phẩm chất lượng cao, giá sỉ tận xưởng..."
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition resize-none"
+                      />
+                    </div>
+
+                    <button suppressHydrationWarning type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {loading
+                        ? 'Đang lưu cấu hình...'
+                        : '💾 Lưu Thông Tin Công Ty Lên Database'}
+                    </button>
+                  </form>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Tên thương hiệu ngắn *
-                  </label>
-                  <input suppressHydrationWarning type="text"
-                    name="short_name"
-                    required
-                    defaultValue={siteSettings.short_name}
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                  />
+
+                {/* ================= CỘT PHẢI (xl:col-span-6): QUẢN LÝ 4 LINKS & 2 VIDEOS + BẢNG LINKS DATABASE ================= */}
+                <div className="xl:col-span-6 space-y-6">
+                  {/* FORM SỬA 4 LINK & 2 VIDEO */}
+                  <form suppressHydrationWarning onSubmit={handleSaveLinks}
+                    className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-7 shadow-xs space-y-6"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                      <div>
+                        <h2 className="text-base md:text-lg font-black text-slate-900 flex items-center gap-2">
+                          <Share2 className="w-5 h-5 text-indigo-600" />
+                          <span>Quản Lý 4 Liên Kết &amp; 2 Video</span>
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Tùy biến 4 icon mạng xã hội và 2 video YouTube trực tiếp
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200/80">
+                        Cột 2: Links &amp; Video
+                      </span>
+                    </div>
+
+                    {/* PHẦN 1: 4 MẠNG XÃ HỘI */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-blue-600" />
+                          <span>1. 4 Kênh Mạng Xã Hội (Header &amp; Footer)</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          Hiển thị góc trên Header
+                        </span>
+                      </div>
+
+                      {/* 1. Facebook */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Facebook Fanpage URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5 fill-[#1877f2]" viewBox="0 0 24 24">
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                            </svg>
+                          </div>
+                          <input suppressHydrationWarning type="url"
+                            name="link_facebook"
+                            required
+                            defaultValue={
+                              linksList.find((l) => l.id === 'facebook')?.url ||
+                              siteSettings.facebook_url ||
+                              'https://facebook.com'
+                            }
+                            placeholder="https://facebook.com/mangcothanhphat"
+                            className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                          />
+                          <a
+                            href={
+                              linksList.find((l) => l.id === 'facebook')?.url ||
+                              siteSettings.facebook_url ||
+                              'https://facebook.com'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Mở kiểm tra đường dẫn"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Xem</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* 2. TikTok */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Kênh TikTok Xưởng Sản Xuất URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 fill-black" viewBox="0 0 24 24">
+                              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z" />
+                            </svg>
+                          </div>
+                          <input suppressHydrationWarning type="url"
+                            name="link_tiktok"
+                            required
+                            defaultValue={
+                              linksList.find((l) => l.id === 'tiktok')?.url ||
+                              siteSettings.tiktok_url ||
+                              'https://tiktok.com'
+                            }
+                            placeholder="https://tiktok.com/@mangcothanhphat"
+                            className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                          />
+                          <a
+                            href={
+                              linksList.find((l) => l.id === 'tiktok')?.url ||
+                              siteSettings.tiktok_url ||
+                              'https://tiktok.com'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Mở kiểm tra đường dẫn"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Xem</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* 3. YouTube */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Kênh YouTube Doanh Nghiệp URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5 fill-[#ff0000]" viewBox="0 0 24 24">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                            </svg>
+                          </div>
+                          <input suppressHydrationWarning type="url"
+                            name="link_youtube"
+                            required
+                            defaultValue={
+                              linksList.find((l) => l.id === 'youtube')?.url ||
+                              siteSettings.youtube_url ||
+                              'https://youtube.com'
+                            }
+                            placeholder="https://youtube.com/@baobithanhphat"
+                            className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                          />
+                          <a
+                            href={
+                              linksList.find((l) => l.id === 'youtube')?.url ||
+                              siteSettings.youtube_url ||
+                              'https://youtube.com'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Mở kiểm tra đường dẫn"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Xem</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* 4. Twitter / X */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Tài Khoản Twitter / X URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 fill-slate-900" viewBox="0 0 24 24">
+                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                          </div>
+                          <input suppressHydrationWarning type="url"
+                            name="link_twitter"
+                            required
+                            defaultValue={
+                              linksList.find((l) => l.id === 'twitter')?.url ||
+                              siteSettings.twitter_url ||
+                              'https://twitter.com'
+                            }
+                            placeholder="https://twitter.com/mangcothanhphat"
+                            className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                          />
+                          <a
+                            href={
+                              linksList.find((l) => l.id === 'twitter')?.url ||
+                              siteSettings.twitter_url ||
+                              'https://twitter.com'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Mở kiểm tra đường dẫn"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Xem</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-5 space-y-4">
+                      {/* PHẦN 2: 2 VIDEO TRANG CHỦ */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                          <Video className="w-3.5 h-3.5 text-red-600" />
+                          <span>2. 2 Video YouTube Xưởng Sản Xuất (Trang Chủ)</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          Mục 2 &amp; Mục 11
+                        </span>
+                      </div>
+
+                      {/* Video 1: Giới thiệu xưởng (Mục 2) */}
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-slate-800">
+                            Video 1: Giới Thiệu Xưởng (Mục 2 Trang Chủ - Về Chúng Tôi)
+                          </label>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                            Mục 2
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-normal">
+                          Khi khách bấm vào nút Play hoặc ảnh xưởng trên trang chủ, hệ thống sẽ mở link video này.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input suppressHydrationWarning type="url"
+                            name="video_intro_url"
+                            required
+                            defaultValue={
+                              linksList.find((l) => l.id === 'video_intro')?.url ||
+                              siteSettings.video_intro_url ||
+                              'https://www.youtube.com/watch?v=lDzM8QeIuGs'
+                            }
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-medium bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                          />
+                          <a
+                            href={
+                              linksList.find((l) => l.id === 'video_intro')?.url ||
+                              siteSettings.video_intro_url ||
+                              'https://www.youtube.com/watch?v=lDzM8QeIuGs'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Xem video trên YouTube"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Xem</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Video 2: Vận hành nhà xưởng (Mục 11 - Video iframe) */}
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-slate-800">
+                            Video 2: Khung Nhúng Trực Tiếp Vận Hành Nhà Xưởng (Mục 11 Trang Chủ)
+                          </label>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-700">
+                            Mục 11
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-normal">
+                          Dán link YouTube bất kỳ (dạng thường <code>watch?v=...</code> hoặc <code>embed/...</code>). Hệ thống tự động chuẩn hóa để nhúng phát trực tiếp không bị chặn.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input suppressHydrationWarning type="url"
+                            name="video_factory_url"
+                            required
+                            defaultValue={
+                              linksList.find((l) => l.id === 'video_factory')?.url ||
+                              siteSettings.video_factory_url ||
+                              'https://www.youtube.com/embed/lDzM8QeIuGs?si=6N-vPjF-LDRJ9N42'
+                            }
+                            placeholder="https://www.youtube.com/watch?v=... hoặc embed/..."
+                            className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-medium bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                          />
+                          <a
+                            href={
+                              linksList.find((l) => l.id === 'video_factory')?.url ||
+                              siteSettings.video_factory_url ||
+                              'https://www.youtube.com/watch?v=lDzM8QeIuGs'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Xem video trên YouTube"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Xem</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* NÚT LƯU 4 LINK & 2 VIDEO */}
+                    <button suppressHydrationWarning type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {loading
+                        ? 'Đang lưu liên kết...'
+                        : '💾 Cập Nhật 4 Link & 2 Video Lên Database'}
+                    </button>
+                  </form>
                 </div>
               </div>
+          )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Hotline hiển thị *
-                  </label>
-                  <input suppressHydrationWarning type="text"
-                    name="hotline"
-                    required
-                    defaultValue={siteSettings.hotline}
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                  />
+          {/* =================================================================
+              SECTION 7A: QUẢN LÝ SLIDER HỆ MẶT TRỜI TRANG CHỦ (5 SLIDE)
+             ================================================================= */}
+          {activeSection === 'sliders' && (
+            <form onSubmit={handleSaveSliders} className="space-y-6">
+              {/* Quick switch tabs between Sliders and Banners */}
+              <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 max-w-fit shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => selectSection('sliders')}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 bg-white text-[#1d4ed8] shadow-xs"
+                >
+                  <Layers className="w-4 h-4 text-[#1d4ed8]" />
+                  <span>🪐 5 Ảnh Slider Hệ Mặt Trời</span>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#1d4ed8] text-[10px] font-extrabold">5 slide</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectSection('banners')}
+                  className="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900"
+                >
+                  <ImageIcon className="w-4 h-4 text-slate-500" />
+                  <span>🖼️ 2 Ảnh Banner Giới Thiệu</span>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-extrabold">2 banner</span>
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-1.5">
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Trang Chủ · Slider Hệ Mặt Trời</span>
+                    </div>
+                    <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                      <span>🪐 Quản Lý 5 Ảnh Slider Hệ Mặt Trời (Trang Chủ)</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                      Cấu hình 5 sản phẩm xoay quanh hệ mặt trời hiển thị tại Hero Trang chủ. Tự động chuyển đổi mượt mà mỗi 5 giây. Ảnh PNG/WebP đã tách nền trong suốt để hiển thị chân thực trên nền quỹ đạo.
+                    </p>
+                  </div>
+
+                  <button
+                    suppressHydrationWarning
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition flex items-center gap-2 shrink-0"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{loading ? 'Đang lưu...' : '💾 Lưu Cấu Hình 5 Slider'}</span>
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Số Zalo *
-                  </label>
-                  <input suppressHydrationWarning type="text"
-                    name="zalo"
-                    required
-                    defaultValue={siteSettings.zalo}
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                  />
+
+                {/* Danh sách 5 Card Slider */}
+                <div className="grid grid-cols-1 gap-6">
+                  {heroSlides.map((slide, idx) => (
+                    <div
+                      key={slide.id || idx}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4 transition hover:border-slate-300"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#0f2d59] text-white font-extrabold text-xs">
+                            {idx + 1}
+                          </span>
+                          <span className="font-extrabold text-sm text-slate-900">
+                            {slide.name}
+                          </span>
+                          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            {slide.badge || 'Đặc điểm nổi bật'}
+                          </span>
+                        </div>
+
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer shadow-xs transition">
+                          <UploadCloud className="w-3.5 h-3.5" />
+                          <span>{uploadingImage ? 'Đang tải...' : 'Tải ảnh trong suốt mới (.webp, .png)'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingImage}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) convertAndUploadWebP(file, `slide-${idx}` as any, 'banners');
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                        {/* Cột trái: Form thông tin text (8/12) */}
+                        <div className="lg:col-span-8 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Tên sản phẩm
+                              </label>
+                              <input
+                                suppressHydrationWarning
+                                type="text"
+                                value={slide.name}
+                                onChange={(e) => {
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], name: e.target.value };
+                                  setHeroSlides(next);
+                                }}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Tag danh mục
+                              </label>
+                              <input
+                                suppressHydrationWarning
+                                type="text"
+                                value={slide.category_name || ''}
+                                onChange={(e) => {
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], category_name: e.target.value };
+                                  setHeroSlides(next);
+                                }}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"
+                                placeholder="Bao Bì Đóng Gói"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Badge cam kết
+                              </label>
+                              <input
+                                suppressHydrationWarning
+                                type="text"
+                                value={slide.badge || ''}
+                                onChange={(e) => {
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], badge: e.target.value };
+                                  setHeroSlides(next);
+                                }}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"
+                                placeholder="Chịu lực cao · Co bền"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Tiêu đề lớn (Headline H1)
+                              </label>
+                              <input
+                                suppressHydrationWarning
+                                type="text"
+                                value={slide.title}
+                                onChange={(e) => {
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], title: e.target.value };
+                                  setHeroSlides(next);
+                                }}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Link điều hướng khi bấm vào
+                              </label>
+                              <input
+                                suppressHydrationWarning
+                                type="text"
+                                value={slide.link_url || ''}
+                                onChange={(e) => {
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], link_url: e.target.value };
+                                  setHeroSlides(next);
+                                }}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-800"
+                                placeholder="/mang-co-pvc hoặc #bao-gia"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Mô tả ngắn banner
+                            </label>
+                            <textarea
+                              suppressHydrationWarning
+                              rows={2}
+                              value={slide.description}
+                              onChange={(e) => {
+                                const next = [...heroSlides];
+                                next[idx] = { ...next[idx], description: e.target.value };
+                                setHeroSlides(next);
+                              }}
+                              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 leading-relaxed"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Đường dẫn URL ảnh (Remove background trong suốt)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                suppressHydrationWarning
+                                type="text"
+                                value={slide.image_url}
+                                onChange={(e) => {
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], image_url: e.target.value };
+                                  setHeroSlides(next);
+                                }}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-800"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const defaultUrls = [
+                                    '/media/categories/mang-co-nhiet.webp',
+                                    '/media/categories/mang-co-pvc.webp',
+                                    '/media/categories/mang-co-pof.webp',
+                                    '/media/categories/mang-co-pe.webp',
+                                    '/media/banners/banner-mang-co.webp',
+                                  ];
+                                  const next = [...heroSlides];
+                                  next[idx] = { ...next[idx], image_url: defaultUrls[idx] || defaultUrls[0] };
+                                  setHeroSlides(next);
+                                }}
+                                className="px-3 py-2 text-xs font-bold text-slate-600 hover:text-emerald-700 bg-white border border-slate-200 rounded-xl whitespace-nowrap shadow-2xs hover:bg-slate-50"
+                              >
+                                Mặc định
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cột phải: Live Preview trên nền Checkerboard trong suốt (4/12) */}
+                        <div className="lg:col-span-4 flex flex-col items-center justify-center">
+                          <div className="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center gap-1.5">
+                            <span>Xem trước (Nền Trong Suốt)</span>
+                          </div>
+                          <div
+                            className="w-full h-44 rounded-xl border border-slate-300 flex items-center justify-center p-3 relative overflow-hidden shadow-inner"
+                            style={{
+                              backgroundImage:
+                                'linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)',
+                              backgroundSize: '16px 16px',
+                              backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
+                              backgroundColor: '#f8fafc',
+                            }}
+                          >
+                            {slide.image_url ? (
+                              <img
+                                src={slide.image_url}
+                                alt={slide.name}
+                                className="max-h-full max-w-full object-contain filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.25)]"
+                              />
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Chưa có ảnh</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Email *
-                  </label>
-                  <input suppressHydrationWarning type="email"
-                    name="email"
-                    required
-                    defaultValue={siteSettings.email}
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                  />
+
+                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+                  <p className="text-xs text-slate-500">
+                    💡 <em>Gợi ý: Ảnh sản phẩm tách nền (PNG hoặc WebP) sẽ hiển thị đẹp nhất trên hệ mặt trời.</em>
+                  </p>
+                  <button
+                    suppressHydrationWarning
+                    type="submit"
+                    disabled={loading}
+                    className="px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{loading ? 'Đang lưu vào Database...' : '💾 Lưu Cấu Hình 5 Slider Vào Database'}</span>
+                  </button>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Địa chỉ văn phòng &amp; xưởng *
-                </label>
-                <input suppressHydrationWarning type="text"
-                  name="address"
-                  required
-                  defaultValue={siteSettings.address}
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Tiêu đề SEO Trang chủ *
-                </label>
-                <input suppressHydrationWarning type="text"
-                  name="seo_title"
-                  required
-                  defaultValue={siteSettings.seo_title}
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Mô tả SEO Trang chủ *
-                </label>
-                <textarea suppressHydrationWarning name="seo_description"
-                  rows={3}
-                  required
-                  defaultValue={siteSettings.seo_description}
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm"
-                />
-              </div>
-
-              <button suppressHydrationWarning type="submit"
-                disabled={loading}
-                className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-sm transition"
-              >
-                {loading
-                  ? 'Đang lưu cấu hình...'
-                  : '💾 Lưu Cấu Hình Lên Database'}
-              </button>
             </form>
           )}
 
           {/* =================================================================
-              SECTION 7B: QUẢN LÝ BANNER ĐỘC LẬP (2 VỊ TRÍ)
+              SECTION 7B: QUẢN LÝ 2 ẢNH BANNER THƯƠNG HIỆU (TRANG CHỦ & GIỚI THIỆU)
              ================================================================= */}
           {activeSection === 'banners' && (
             <form onSubmit={handleSaveBanners} className="space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-6">
-                <div>
-                  <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                    <span>🖼️ Quản Lý Banner Độc Lập</span>
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Cấu hình độc lập 2 vị trí banner: <strong>Banner Trang Chủ</strong> (Hero media góc phải tiêu đề) và <strong>Banner Trang Giới Thiệu</strong> (Mục 4 &quot;Sản phẩm của chúng tôi&quot;).
-                  </p>
+              {/* Quick switch tabs between Sliders and Banners */}
+              <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 max-w-fit shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => selectSection('sliders')}
+                  className="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900"
+                >
+                  <Layers className="w-4 h-4 text-slate-500" />
+                  <span>🪐 5 Ảnh Slider Hệ Mặt Trời</span>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-extrabold">5 slide</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectSection('banners')}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 bg-white text-[#1d4ed8] shadow-xs"
+                >
+                  <ImageIcon className="w-4 h-4 text-[#1d4ed8]" />
+                  <span>🖼️ 2 Ảnh Banner Giới Thiệu</span>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#1d4ed8] text-[10px] font-extrabold">2 banner</span>
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-8">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold mb-1.5">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Trang Giới Thiệu (/gioi-thieu)</span>
+                    </div>
+                    <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                      <span>🖼️ Quản Lý 2 Ảnh Banner Trang Giới Thiệu (/gioi-thieu)</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                      Cấu hình 2 ảnh hiển thị trên trang Giới Thiệu: <strong>1 ảnh Hero đầu trang</strong> (cạnh mục 'Về Chúng Tôi') và <strong>1 banner dải ngang ở giữa trang</strong> (mục 'Sản phẩm của chúng tôi'). Dữ liệu lưu trực tiếp vào Database Supabase.
+                    </p>
+                  </div>
+
+                  <button
+                    suppressHydrationWarning
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{loading ? 'Đang lưu...' : '💾 Lưu 2 Ảnh Banner'}</span>
+                  </button>
                 </div>
 
-                {/* VỊ TRÍ 1: BANNER TRANG CHỦ */}
-                <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* BANNER 1: ẢNH HERO ĐẦU TRANG GIỚI THIỆU */}
+                <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
                     <div>
                       <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold mb-1">
-                        Vị trí 1
+                        Vị trí 1 · Đầu Trang Giới Thiệu
                       </span>
-                      <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                        Banner Trang Chủ (Hero Media)
+                      <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        1. Ảnh Hero Trang Giới Thiệu (Cạnh 'Về Chúng Tôi')
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Ảnh hiển thị ngay đầu Trang Chủ bên cạnh tiêu đề chính. Tỉ lệ khuyến nghị: 4:3 hoặc 16:10 ngang.
+                        Ảnh đại diện xưởng/sản phẩm nằm ở đầu trang Giới Thiệu (/gioi-thieu), bên phải tiêu đề "VỀ CHÚNG TÔI". Tỉ lệ khuyến nghị: 640x420px hoặc 1200x800px.
                       </p>
                     </div>
 
-                    <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shadow-xs transition">
+                    <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white text-xs font-bold cursor-pointer shadow-xs hover:shadow-md transition-all">
                       <UploadCloud className="w-4 h-4" />
-                      <span>{uploadingImage ? 'Đang nén WebP...' : 'Tải ảnh Banner Trang Chủ (.webp)'}</span>
+                      <span>{uploadingImage ? 'Đang nén WebP...' : 'Tải ảnh Hero Giới Thiệu (.webp)'}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -3277,22 +4750,22 @@ export default function AdminDashboardClient({
                     </label>
                   </div>
 
-                  {/* Preview Banner Trang Chủ */}
-                  <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[140px] max-h-72 flex items-center justify-center p-2">
+                  {/* Preview Banner Hero Giới Thiệu */}
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[140px] max-h-64 flex items-center justify-center p-2">
                     {heroBannerUrl ? (
                       <img
                         src={heroBannerUrl}
-                        alt="Hero Banner Preview"
-                        className="w-full h-auto max-h-64 object-contain rounded-lg shadow-2xs"
+                        alt="Hero Banner Giới Thiệu Preview"
+                        className="w-full h-auto max-h-56 object-contain rounded-lg shadow-2xs"
                       />
                     ) : (
-                      <span className="text-xs text-slate-400 italic">Chưa có ảnh banner trang chủ</span>
+                      <span className="text-xs text-slate-400 italic">Chưa có ảnh hero giới thiệu</span>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Đường dẫn URL ảnh Banner Trang Chủ
+                      Đường dẫn URL ảnh Hero Trang Giới Thiệu
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -3317,24 +4790,24 @@ export default function AdminDashboardClient({
                   </div>
                 </div>
 
-                {/* VỊ TRÍ 2: BANNER TRANG GIỚI THIỆU */}
-                <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* BANNER 2: BANNER DẢI NGANG TRANG GIỚI THIỆU */}
+                <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
                     <div>
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold mb-1">
-                        Vị trí 2
+                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold mb-1">
+                        Vị trí 2 · Giữa Trang Giới Thiệu
                       </span>
-                      <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                        Banner Trang Giới Thiệu (Sản Phẩm Của Chúng Tôi)
+                      <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        2. Banner Dải Ngang Trang Giới Thiệu (Mục 'Sản phẩm của chúng tôi')
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Ảnh banner dải ngang hiển thị tại Mục 4 trang Giới Thiệu (/gioi-thieu). Tỉ lệ khuyến nghị: banner ngang dài (1200x400px hoặc 1920x600px).
+                        Ảnh banner dải ngang hiển thị tại Mục 5 trang Giới Thiệu (/gioi-thieu). Tỉ lệ khuyến nghị: 1920x600px hoặc 1200x400px.
                       </p>
                     </div>
 
-                    <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer shadow-xs transition">
+                    <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white text-xs font-bold cursor-pointer shadow-xs hover:shadow-md transition-all">
                       <UploadCloud className="w-4 h-4" />
-                      <span>{uploadingImage ? 'Đang nén WebP...' : 'Tải ảnh Banner Giới Thiệu (.webp)'}</span>
+                      <span>{uploadingImage ? 'Đang nén WebP...' : 'Tải ảnh Banner Ngang Giới Thiệu (.webp)'}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -3348,13 +4821,13 @@ export default function AdminDashboardClient({
                     </label>
                   </div>
 
-                  {/* Preview Banner Trang Giới Thiệu */}
-                  <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[140px] max-h-72 flex items-center justify-center p-2">
+                  {/* Preview Banner Ngang Giới Thiệu */}
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 min-h-[140px] max-h-64 flex items-center justify-center p-2">
                     {aboutBannerUrl ? (
                       <img
                         src={aboutBannerUrl}
-                        alt="About Banner Preview"
-                        className="w-full h-auto max-h-64 object-contain rounded-lg shadow-2xs"
+                        alt="Banner Ngang Giới Thiệu Preview"
+                        className="w-full h-auto max-h-56 object-contain rounded-lg shadow-2xs"
                       />
                     ) : (
                       <span className="text-xs text-slate-400 italic">Chưa có ảnh banner giới thiệu</span>
@@ -3363,7 +4836,7 @@ export default function AdminDashboardClient({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Đường dẫn URL ảnh Banner Trang Giới Thiệu
+                      Đường dẫn URL ảnh Banner Dải Ngang
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -3379,7 +4852,7 @@ export default function AdminDashboardClient({
                         <button
                           type="button"
                           onClick={() => setAboutBannerUrl('/media/banners/banner-mang-co.webp')}
-                          className="px-3.5 py-2.5 text-xs font-bold text-slate-600 hover:text-emerald-600 whitespace-nowrap bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-2xs"
+                          className="px-3.5 py-2.5 text-xs font-bold text-slate-600 hover:text-blue-600 whitespace-nowrap bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-2xs"
                         >
                           Mặc định
                         </button>
@@ -3393,9 +4866,10 @@ export default function AdminDashboardClient({
                     suppressHydrationWarning
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-sm transition"
+                    className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] text-white font-black text-sm uppercase tracking-wider shadow-md hover:shadow-lg hover:shadow-sky-500/30 transition-all flex items-center gap-2 cursor-pointer"
                   >
-                    {loading ? 'Đang lưu Banner...' : '💾 Lưu 2 Vị Trí Banner Lên Database'}
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{loading ? 'Đang lưu vào Database...' : '💾 Lưu 2 Ảnh Banner Vào Database'}</span>
                   </button>
                 </div>
               </div>
@@ -3890,8 +5364,8 @@ export default function AdminDashboardClient({
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-16 bg-white border-t border-slate-200 grid grid-cols-6 px-1">
         <button suppressHydrationWarning type="button"
           onClick={() => selectSection('dashboard')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold ${
-            activeSection === 'dashboard' ? 'text-blue-600' : 'text-slate-500'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] ${
+            activeSection === 'dashboard' ? 'text-[#0284c7] font-black' : 'text-slate-500 font-bold'
           }`}
         >
           <LayoutGrid className="w-4 h-4" />
@@ -3900,8 +5374,8 @@ export default function AdminDashboardClient({
 
         <button suppressHydrationWarning type="button"
           onClick={() => selectSection('leads')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold relative ${
-            activeSection === 'leads' ? 'text-blue-600' : 'text-slate-500'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] relative ${
+            activeSection === 'leads' ? 'text-[#0284c7] font-black' : 'text-slate-500 font-bold'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -3910,8 +5384,8 @@ export default function AdminDashboardClient({
 
         <button suppressHydrationWarning type="button"
           onClick={() => selectSection('products')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold ${
-            activeSection === 'products' ? 'text-blue-600' : 'text-slate-500'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] ${
+            activeSection === 'products' ? 'text-[#0284c7] font-black' : 'text-slate-500 font-bold'
           }`}
         >
           <Package className="w-4 h-4" />
@@ -3920,8 +5394,8 @@ export default function AdminDashboardClient({
 
         <button suppressHydrationWarning type="button"
           onClick={() => selectSection('banners')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold ${
-            activeSection === 'banners' ? 'text-blue-600' : 'text-slate-500'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] ${
+            activeSection === 'banners' ? 'text-[#0284c7] font-black' : 'text-slate-500 font-bold'
           }`}
         >
           <ImageIcon className="w-4 h-4" />
@@ -3930,8 +5404,8 @@ export default function AdminDashboardClient({
 
         <button suppressHydrationWarning type="button"
           onClick={() => selectSection('posts')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold ${
-            activeSection === 'posts' ? 'text-blue-600' : 'text-slate-500'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] ${
+            activeSection === 'posts' ? 'text-[#0284c7] font-black' : 'text-slate-500 font-bold'
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -3940,8 +5414,8 @@ export default function AdminDashboardClient({
 
         <button suppressHydrationWarning type="button"
           onClick={() => selectSection('webp')}
-          className={`flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold ${
-            activeSection === 'webp' ? 'text-blue-600' : 'text-slate-500'
+          className={`flex flex-col items-center justify-center gap-1 text-[10px] ${
+            activeSection === 'webp' ? 'text-[#0284c7] font-black' : 'text-slate-500 font-bold'
           }`}
         >
           <UploadCloud className="w-4 h-4" />

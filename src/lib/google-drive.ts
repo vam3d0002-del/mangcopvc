@@ -362,7 +362,7 @@ export async function testGoogleDriveConnection(
 ): Promise<{ ok: boolean; message: string; fileUrl?: string }> {
   const nowStr = new Date().toISOString();
   const testBuffer = Buffer.from(
-    `Kiểm tra kết nối Google Drive từ Cao Vạn Thịnh (mangcopvc-seo)\nThời gian: ${nowStr}\nTrạng thái: Kết nối thành công!`,
+    `Kiểm tra kết nối Google Drive từ Bao Bì Thành Phát (mangcodanang.com)\nThời gian: ${nowStr}\nTrạng thái: Kết nối thành công!`,
     'utf-8'
   );
   const testFileName = `test-connection-${Date.now()}.txt`;

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getCachedPostsList, getCachedSiteSettings } from '@/lib/cache';
 import QuoteSection from '@/components/QuoteSection';
 
-export const revalidate = 2592000;
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: 'Màng Co POF 5 Lớp An Toàn Thực Phẩm (12mic, 15mic, 19mic, 25mic) Giá Sỉ',
@@ -18,6 +18,7 @@ export default async function MangCoPofPage() {
     getCachedPostsList(),
   ]);
 
+  const cleanPhone = settings.hotline.replace(/\s|\./g, '');
   const pofPosts = posts.filter((p) => p.category_name === 'Màng Co POF');
 
   return (
@@ -125,32 +126,67 @@ export default async function MangCoPofPage() {
             </p>
           </div>
 
-          <div className="mcvt-card bg-blue-50/50 border-blue-200">
-            <h3 className="text-xl font-extrabold text-slate-900 mb-3">
-              5 đặc tính vượt trội của Màng Co POF
-            </h3>
-            <ul className="mcvt-Checklist" style={{ margin: 0 }}>
-              <li>
-                <strong>Không mùi, không khói độc:</strong> An toàn cho công
-                nhân đứng máy hàn nhiệt trong phòng kín.
-              </li>
-              <li>
-                <strong>Mềm dẻo &amp; chống đâm thủng:</strong> Góc hộp sau khi
-                co mềm mại, không sắc nhọn.
-              </li>
-              <li>
-                <strong>Không bị giòn rách ở nhiệt độ âm:</strong> Lý tưởng cho
-                thực phẩm cấp đông, thủy sản xuất khẩu.
-              </li>
-              <li>
-                <strong>Đường hàn mảnh, chắc chắn:</strong> Chạy mượt trên các
-                máy cắt hàn chữ L tốc độ cao.
-              </li>
-              <li>
-                <strong>Có thể tái chế 100%:</strong> Đáp ứng tiêu chuẩn môi
-                trường của thị trường Mỹ, EU, Nhật Bản.
-              </li>
-            </ul>
+          <div className="rounded-2xl bg-gradient-to-br from-[#072554] via-[#0b3874] to-[#072554] text-white p-6 sm:p-7 shadow-xl border border-sky-400/30 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-sky-500/30 border border-sky-400/40 text-sky-200 text-xs font-bold mb-3 tracking-wide">
+                Ưu Điểm Vượt Trội
+              </span>
+              <h3 className="text-xl font-extrabold text-white mb-4">
+                5 đặc tính vượt trội của Màng Co POF
+              </h3>
+              <ul className="space-y-3 text-sm text-slate-100">
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Không mùi, không khói độc:</strong> An toàn tuyệt đối cho thực phẩm và công nhân đứng máy.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Mềm dẻo &amp; chống đâm thủng:</strong> Góc hộp sau khi co mềm mại, không sắc nhọn, dai khó rách.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Không bị giòn rách ở nhiệt độ âm:</strong> Lý tưởng cho thực phẩm đông lạnh, thủy hải sản.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Đường hàn siêu mảnh, thẩm mỹ:</strong> Chạy êm ái trên các dòng máy đóng gói tự động tốc độ cao.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Thân thiện môi trường, tái chế 100%:</strong> Đạt chứng nhận FDA và tiêu chuẩn xuất khẩu EU, Mỹ.
+                  </span>
+                </li>
+              </ul>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between relative z-10">
+              <span className="text-xs text-sky-200">Tư vấn chọn micron chuẩn</span>
+              <a
+                href={`tel:${cleanPhone}`}
+                className="text-sm font-extrabold text-amber-300 hover:text-amber-200 transition-colors flex items-center gap-1.5"
+              >
+                <span>📞 Gọi {settings.hotline}</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -316,33 +352,63 @@ export default async function MangCoPofPage() {
       </section>
 
       {/* 7. BÀI VIẾT SẢN PHẨM MÀNG CO POF */}
-      <section className="mcvt-sec">
-        <div className="mcvt-wrap">
-          <div className="mcvt-sec-head">
-            <span className="mcvt-eyebrow">Kiến thức POF</span>
-            <h2 className="mcvt-h2">
-              Bài viết hướng dẫn &amp; ứng dụng Màng Co POF
+      <section className="py-16 md:py-20 bg-slate-50/70 border-t border-slate-200/70">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#0284c7] border border-blue-200/60 mb-2">
+              Kiến Thức POF
+            </span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal mb-3">
+              Bài Viết Hướng Dẫn &amp; Ứng Dụng Màng Co POF
             </h2>
+            <p className="text-slate-600 text-base">
+              Cẩm nang thực tế về tiêu chuẩn an toàn thực phẩm, nhiệt độ buồng co và giải pháp màng co mềm dai cao cấp.
+            </p>
           </div>
 
-          <div className="mcvt-pgrid">
-            {pofPosts.map((post) => (
-              <article key={post.id} className="mcvt-pcard">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pofPosts.slice(0, 6).map((post) => (
+              <article
+                key={post.id}
+                className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-md shadow-slate-200/70 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 flex flex-col group"
+              >
                 <Link
-                  className="mcvt-pcard-thumb"
                   href={`/tin-tuc/${post.slug}`}
+                  className="relative aspect-[16/10] bg-slate-100 overflow-hidden block"
                 >
                   <img
-                    src={post.thumbnail_url}
+                    src={post.thumbnail_url || '/media/categories/mang-co-pof.webp'}
                     alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
+
+                  {/* Badge thương hiệu nhỏ góc trên bên trái */}
+                  <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded bg-[#0f2d59]/90 backdrop-blur-xs text-[10px] font-bold text-amber-300 tracking-wider uppercase border border-amber-300/30 shadow-xs">
+                    {settings.short_name || 'Bao Bì Thành Phát'}
+                  </div>
+
+                  {/* Lớp phủ gradient xanh: Đáy xanh đậm, càng lên cao càng mờ dần đến trong suốt */}
+                  <div className="absolute inset-x-0 bottom-0 z-10 pt-28 pb-3.5 px-4 sm:px-5 bg-gradient-to-t from-[#0f2d59] via-[#0f2d59]/85 via-45% via-[#0f2d59]/20 to-transparent flex items-end">
+                    <h3 className="font-extrabold text-white text-sm sm:text-base uppercase tracking-tight line-clamp-2 drop-shadow-sm group-hover:text-sky-200 transition-colors">
+                      {post.title}
+                    </h3>
+                  </div>
                 </Link>
-                <div className="mcvt-pcard-body">
-                  <h3 className="mcvt-pcard-title">
-                    <Link href={`/tin-tuc/${post.slug}`}>{post.title}</Link>
-                  </h3>
-                  <p className="mcvt-pcard-ex">{post.excerpt}</p>
+
+                {/* Phần nội dung tóm tắt & Nút Xem chi tiết màu chủ đạo › */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed line-clamp-2">
+                    {post.excerpt ||
+                      'Cẩm nang hướng dẫn chi tiết quy chuẩn màng co đóng gói và giải pháp tối ưu chi phí.'}
+                  </p>
+                  <Link
+                    href={`/tin-tuc/${post.slug}`}
+                    className="text-[#0284c7] hover:text-[#2563eb] font-bold text-xs sm:text-sm inline-flex items-center gap-1 transition-colors mt-auto group/btn"
+                  >
+                    <span>Xem chi tiết</span>
+                    <span className="text-base font-black leading-none group-hover/btn:translate-x-1 transition-transform">›</span>
+                  </Link>
                 </div>
               </article>
             ))}

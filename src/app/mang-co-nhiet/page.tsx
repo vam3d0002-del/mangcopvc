@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getCachedPostsList, getCachedSiteSettings } from '@/lib/cache';
 import QuoteSection from '@/components/QuoteSection';
 
-export const revalidate = 2592000;
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: 'Màng Co Nhiệt (Shrink Film) – Phân Loại PVC, POF, PE & Báo Giá Tại Xưởng',
@@ -128,28 +128,59 @@ export default async function MangCoNhietPage() {
             </p>
           </div>
 
-          <div className="mcvt-card bg-blue-50/50 border-blue-200">
-            <h3 className="text-xl font-extrabold text-slate-900 mb-3">
-              Vì sao doanh nghiệp ưu tiên dùng màng co nhiệt?
-            </h3>
-            <ul className="mcvt-Checklist" style={{ margin: 0 }}>
-              <li>
-                <strong>Tiết kiệm chi phí bao bì:</strong> Giá thành thấp hơn
-                nhiều so với hộp nhựa định hình hay thùng carton phụ.
-              </li>
-              <li>
-                <strong>Đa dạng hình dáng:</strong> Ôm gọn từ hộp vuông, chai
-                tròn, hũ lục giác cho đến giỏ quà Tết bất đối xứng.
-              </li>
-              <li>
-                <strong>Gom lốc khuyến mãi nhanh:</strong> Dễ dàng bó 2–6 sản
-                phẩm tặng kèm thành một khối chắc chắn.
-              </li>
-              <li>
-                <strong>Tăng giá trị cảm quan:</strong> Độ bóng cao giúp màu sắc
-                in ấn trên vỏ hộp nổi bật hơn trên kệ trưng bày.
-              </li>
-            </ul>
+          <div className="rounded-2xl bg-gradient-to-br from-[#072554] via-[#0b3874] to-[#072554] text-white p-6 sm:p-7 shadow-xl border border-sky-400/30 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-sky-500/30 border border-sky-400/40 text-sky-200 text-xs font-bold mb-3 tracking-wide">
+                Lợi Ích Thực Tế
+              </span>
+              <h3 className="text-xl font-extrabold text-white mb-4">
+                Vì sao doanh nghiệp ưu tiên dùng màng co nhiệt?
+              </h3>
+              <ul className="space-y-3 text-sm text-slate-100">
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Tiết kiệm chi phí bao bì:</strong> Giá thành thấp hơn nhiều so với hộp nhựa định hình hay thùng carton phụ.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Đa dạng hình dáng:</strong> Ôm gọn từ hộp vuông, chai tròn, hũ lục giác cho đến giỏ quà Tết bất đối xứng.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Gom lốc khuyến mãi nhanh:</strong> Dễ dàng bó 2–6 sản phẩm tặng kèm thành một khối chắc chắn.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs shrink-0 mt-0.5 border border-emerald-400/30">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">
+                    <strong>Tăng giá trị cảm quan:</strong> Độ bóng cao giúp màu sắc in ấn trên vỏ hộp nổi bật hơn trên kệ trưng bày.
+                  </span>
+                </li>
+              </ul>
+            </div>
+            <div className="mt-6 pt-4 border-t border-white/15 flex items-center justify-between relative z-10">
+              <span className="text-xs text-sky-200">Hỗ trợ kỹ thuật đóng gói 24/7</span>
+              <a
+                href={`tel:${cleanPhone}`}
+                className="text-sm font-extrabold text-amber-300 hover:text-amber-200 transition-colors flex items-center gap-1.5"
+              >
+                <span>📞 Gọi {settings.hotline}</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -328,33 +359,63 @@ export default async function MangCoNhietPage() {
       </section>
 
       {/* 7. BÀI VIẾT & ỨNG DỤNG MÀNG CO NHIỆT */}
-      <section className="mcvt-sec" id="san-pham">
-        <div className="mcvt-wrap">
-          <div className="mcvt-sec-head">
-            <span className="mcvt-eyebrow">Kiến thức &amp; Ứng dụng</span>
-            <h2 className="mcvt-h2">
-              Hướng dẫn sử dụng &amp; kinh nghiệm chọn màng co nhiệt
+      <section className="py-16 md:py-20 bg-slate-50/70 border-t border-slate-200/70" id="san-pham">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#0284c7] border border-blue-200/60 mb-2">
+              Kiến Thức &amp; Ứng Dụng
+            </span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal mb-3">
+              Hướng Dẫn Sử Dụng &amp; Kinh Nghiệm Chọn Màng Co Nhiệt
             </h2>
+            <p className="text-slate-600 text-base">
+              Tổng hợp cẩm nang kỹ thuật thực chiến giúp bạn lựa chọn đúng dòng màng và tối ưu hiệu quả đóng gói.
+            </p>
           </div>
 
-          <div className="mcvt-pgrid">
-            {nhietPosts.map((post) => (
-              <article key={post.id} className="mcvt-pcard">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {nhietPosts.slice(0, 6).map((post) => (
+              <article
+                key={post.id}
+                className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-md shadow-slate-200/70 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 flex flex-col group"
+              >
                 <Link
-                  className="mcvt-pcard-thumb"
                   href={`/tin-tuc/${post.slug}`}
+                  className="relative aspect-[16/10] bg-slate-100 overflow-hidden block"
                 >
                   <img
-                    src={post.thumbnail_url}
+                    src={post.thumbnail_url || '/media/categories/mang-co-nhiet.webp'}
                     alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
+
+                  {/* Badge thương hiệu nhỏ góc trên bên trái */}
+                  <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded bg-[#0f2d59]/90 backdrop-blur-xs text-[10px] font-bold text-amber-300 tracking-wider uppercase border border-amber-300/30 shadow-xs">
+                    {settings.short_name || 'Bao Bì Thành Phát'}
+                  </div>
+
+                  {/* Lớp phủ gradient xanh: Đáy xanh đậm, càng lên cao càng mờ dần đến trong suốt */}
+                  <div className="absolute inset-x-0 bottom-0 z-10 pt-28 pb-3.5 px-4 sm:px-5 bg-gradient-to-t from-[#0f2d59] via-[#0f2d59]/85 via-45% via-[#0f2d59]/20 to-transparent flex items-end">
+                    <h3 className="font-extrabold text-white text-sm sm:text-base uppercase tracking-tight line-clamp-2 drop-shadow-sm group-hover:text-sky-200 transition-colors">
+                      {post.title}
+                    </h3>
+                  </div>
                 </Link>
-                <div className="mcvt-pcard-body">
-                  <h3 className="mcvt-pcard-title">
-                    <Link href={`/tin-tuc/${post.slug}`}>{post.title}</Link>
-                  </h3>
-                  <p className="mcvt-pcard-ex">{post.excerpt}</p>
+
+                {/* Phần nội dung tóm tắt & Nút Xem chi tiết màu chủ đạo › */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed line-clamp-2">
+                    {post.excerpt ||
+                      'Cẩm nang hướng dẫn chi tiết quy chuẩn màng co đóng gói và giải pháp tối ưu chi phí.'}
+                  </p>
+                  <Link
+                    href={`/tin-tuc/${post.slug}`}
+                    className="text-[#0284c7] hover:text-[#2563eb] font-bold text-xs sm:text-sm inline-flex items-center gap-1 transition-colors mt-auto group/btn"
+                  >
+                    <span>Xem chi tiết</span>
+                    <span className="text-base font-black leading-none group-hover/btn:translate-x-1 transition-transform">›</span>
+                  </Link>
                 </div>
               </article>
             ))}

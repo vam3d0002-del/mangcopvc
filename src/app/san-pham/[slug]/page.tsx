@@ -8,10 +8,11 @@ import {
   getCachedSiteSettings,
 } from '@/lib/cache';
 import QuoteForm from '@/components/QuoteForm';
+import ProductCard from '@/components/ProductCard';
 import { renderMarkdownOrHtml } from '@/lib/markdown';
 
-// Cache ISR: Revalidate 60 giây để cập nhật nhanh khi Admin đổi thông tin/ảnh
-export const revalidate = 60;
+export const revalidate = 86400;
+export const dynamicParams = true;
 
 export async function generateStaticParams() {
   const products = await getCachedProductsList();
@@ -111,11 +112,11 @@ export default async function ProductDetailPage({
       {/* Main Product Info */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5">
-          <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+          <div className="aspect-square rounded-2xl overflow-hidden bg-[#f1f4f9] border border-slate-200/90 shadow-sm relative group">
             <img
               src={product.thumbnail_url}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           </div>
         </div>
@@ -185,7 +186,7 @@ export default async function ProductDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-10">
         <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm">
           <div
-            className="prose-content"
+            className="prose-content overflow-x-auto max-w-full"
             dangerouslySetInnerHTML={{
               __html: renderMarkdownOrHtml(product.content),
             }}
@@ -212,38 +213,9 @@ export default async function ProductDetailPage({
             </Link>
           </div>
 
-          <div className="mcvt-post-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {relatedProducts.map((prod) => (
-              <article key={`related-${prod.id}`} className="mcvt-post-card">
-                <Link
-                  href={`/san-pham/${prod.slug}`}
-                  className="mcvt-post-card__img"
-                >
-                  <img
-                    src={prod.thumbnail_url || '/media/products/hero-mang-co.webp'}
-                    alt={prod.name}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </Link>
-                <div className="mcvt-post-card__body">
-                  <h3 className="mcvt-post-card__title">
-                    <Link href={`/san-pham/${prod.slug}`}>{prod.name}</Link>
-                  </h3>
-                  <div className="text-xs text-blue-600 font-bold mb-3 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                    <span>{prod.price_label || 'Liên hệ báo giá sỉ'}</span>
-                  </div>
-                  <div className="mcvt-post-card__cta">
-                    <Link
-                      className="mcvt-post-card__btn"
-                      href={`/san-pham/${prod.slug}`}
-                    >
-                      Xem chi tiết
-                    </Link>
-                  </div>
-                </div>
-              </article>
+              <ProductCard key={`related-${prod.id}`} product={prod} />
             ))}
           </div>
         </section>

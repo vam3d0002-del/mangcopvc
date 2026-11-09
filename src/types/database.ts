@@ -14,6 +14,27 @@ export interface GoogleDriveBackupConfig {
   last_backup_file?: string | null;
 }
 
+export interface HeroSlide {
+  id: string;
+  name: string;
+  category_name?: string;
+  title: string;
+  description: string;
+  image_url: string;
+  link_url?: string;
+  badge?: string;
+  sort_order: number;
+}
+
+export interface WebLink {
+  id: string; // 'facebook' | 'tiktok' | 'youtube' | 'twitter' | 'video_intro' | 'video_factory'
+  title: string;
+  url: string;
+  type: 'social' | 'video';
+  description?: string;
+  updated_at?: string;
+}
+
 export interface SiteSettings {
   id: number;
   company_name: string;
@@ -27,7 +48,16 @@ export interface SiteSettings {
   banner_url?: string | null;
   hero_banner_url?: string | null;
   about_banner_url?: string | null;
+  hero_slides?: HeroSlide[] | null;
   drive_backup_config?: GoogleDriveBackupConfig | null;
+  // 4 Links mạng xã hội & 2 Video xưởng
+  facebook_url?: string | null;
+  tiktok_url?: string | null;
+  youtube_url?: string | null;
+  twitter_url?: string | null;
+  video_intro_url?: string | null;
+  video_factory_url?: string | null;
+  links?: WebLink[] | null;
   updated_at: string;
 }
 
@@ -40,9 +70,22 @@ export interface Category {
   sort_order: number;
 }
 
+export interface Industry {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string | null;
+  tag?: string | null;
+  description: string | null;
+  image_url?: string | null;
+  sort_order: number;
+}
+
 export interface ProductListItem {
   id: string;
   category_id: string | null;
+  industry_id?: string | null;
+  industry_ids?: string[];
   name: string;
   slug: string;
   sku: string | null;
@@ -51,6 +94,8 @@ export interface ProductListItem {
   specs: Record<string, string>;
   thumbnail_url: string;
   is_featured: boolean;
+  home_order?: number;
+  is_published?: boolean;
   created_at: string;
 }
 

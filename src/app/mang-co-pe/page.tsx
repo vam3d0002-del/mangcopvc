@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getCachedSiteSettings } from '@/lib/cache';
 import QuoteSection from '@/components/QuoteSection';
 
-export const revalidate = 2592000;
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: 'Màng Co PE (LDPE Shrink Film) Quấn Lốc Chai Nước, Bia & Kiện Hàng Nặng',

@@ -1,21 +1,52 @@
 import Link from 'next/link';
 import {
+  Factory,
+  CheckCircle2,
+  FileSearch,
+  Boxes,
+  Printer,
+  Flame,
+  Scissors,
+  ShieldCheck,
+  ArrowRight,
+  ChevronRight,
+  Phone,
+  Calculator,
+  Sparkles,
+} from 'lucide-react';
+import {
   getCachedCategories,
+  getCachedIndustries,
+  getCachedPostsList,
   getCachedProductsList,
   getCachedSiteSettings,
 } from '@/lib/cache';
 import ShrinkFilmCalculator from '@/components/ShrinkFilmCalculator';
 import QuoteSection from '@/components/QuoteSection';
+import SolarHeroBanner from '@/components/SolarHeroBanner';
 
-// Cache tĩnh 30 ngày trên Vercel CDN -> Không tốn ISR Writes & Function Invocations
-export const revalidate = 2592000;
+// Tối ưu hóa ISR 24 giờ cho Vercel Edge CDN: Không tốn CPU & Fast Origin Transfer khi khách truy cập
+export const revalidate = 86400;
+
+function toYouTubeEmbedUrl(url: string | null | undefined): string {
+  if (!url) return 'https://www.youtube.com/embed/lDzM8QeIuGs?si=6N-vPjF-LDRJ9N42';
+  if (url.includes('/embed/')) return url;
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]+)/);
+  if (match && match[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
+  }
+  return url;
+}
 
 export default async function HomePage() {
-  const [settings, categories, products] = await Promise.all([
-    getCachedSiteSettings(),
-    getCachedCategories(),
-    getCachedProductsList(),
-  ]);
+  const [settings, categories, industriesData, products, posts] =
+    await Promise.all([
+      getCachedSiteSettings(),
+      getCachedCategories(),
+      getCachedIndustries(),
+      getCachedProductsList(),
+      getCachedPostsList(),
+    ]);
 
   const cleanPhone = settings.hotline.replace(/\s|\./g, '');
   const rawZalo = (settings.zalo || '').replace(/\s|\./g, '');
@@ -39,50 +70,81 @@ export default async function HomePage() {
       ? addressParts.slice(0, -1).join(', ')
       : settings.address;
 
-  // 4 sản phẩm Màng Co PVC mới nhất
-  const pvcProducts = products
-    .filter(
-      (p) =>
-        p.category_id === 'cat-pvc' ||
-        p.category_id === 'pvc' ||
-        p.slug.includes('pvc')
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    .slice(0, 4);
+  // 8 Sản phẩm hiển thị ở Trang chủ (Tự động lấy từ các sản phẩm bật is_featured theo đúng thứ tự home_order 1..8)
+  const homeFeaturedProducts = products
+    .filter((p) => p.is_featured)
+    .sort((a, b) => (a.home_order || 999999) - (b.home_order || 999999))
+    .slice(0, 8);
 
-  // 4 sản phẩm Màng Co POF mới nhất
-  const pofProducts = products
-    .filter(
-      (p) =>
-        p.category_id === 'cat-pof' ||
-        p.category_id === 'pof' ||
-        p.slug.includes('pof')
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    .slice(0, 4);
+  const activeProducts =
+    homeFeaturedProducts.length > 0
+      ? homeFeaturedProducts
+      : products.slice(0, 8);
 
-  // 4 sản phẩm Màng Co Nhiệt / PE mới nhất
-  const nhietProducts = products
-    .filter(
-      (p) =>
-        p.category_id === 'cat-nhiet' ||
-        p.category_id === 'cat-pe' ||
-        p.category_id === 'nhiet' ||
-        p.category_id === 'pe' ||
-        p.slug.includes('pe') ||
-        p.slug.includes('nhiet')
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    .slice(0, 4);
+  const packagingShapes = activeProducts.map((p) => ({
+    id: p.id,
+    name: p.name.toUpperCase(),
+    desc: p.short_description,
+    img: p.thumbnail_url,
+    link: `/san-pham/${p.slug}`,
+    badge: 'Bán chạy',
+  }));
+
+  // 8 Ngành nghề ứng dụng thực tế (Đồng bộ 100% từ bảng industries trên Supabase)
+  const industriesList = (industriesData.length > 0 ? industriesData : categories).map((ind: any) => ({
+    name: ind.name,
+    desc:
+      ind.description ||
+      'Giải pháp bao bì màng co chuyên biệt cho từng đặc thù sản phẩm.',
+    icon: ind.icon || '📦',
+    tag: ind.tag || 'Tiêu Chuẩn Cao',
+    image_url: ind.image_url || settings.hero_banner_url || '/media/banners/banner-mang-co.webp',
+    link: ind.icon ? `/san-pham?nganh=${ind.slug}` : `/san-pham?category=${ind.slug}`,
+  }));
+
+  // Đối tác tiêu biểu chạy Marquee
+  const partners = [
+    'VINAMILK',
+    'TH TRUE MILK',
+    'ORION FOOD',
+    'MASAN CONSUMER',
+    'KIDO GROUP',
+    'TRUNG NGUYEN LEGEND',
+    'HIGHLANDS COFFEE',
+    'OCOP VIỆT NAM',
+    'NÔNG LÂM FOOD',
+    'HÀ ANH FOOD',
+    'VIFON',
+    'ACECOOK VIETNAM',
+  ];
+
+  // Câu hỏi thường gặp FAQ (Chuẩn theo baobidonggoi)
+  const faqs = [
+    {
+      q: `Giá sản xuất màng co và bao bì tại ${settings.short_name} được tính như thế nào?`,
+      a: 'Giá sản xuất được tính toán tối ưu dựa trên 4 yếu tố chính: Loại vật liệu màng (PVC, POF, PE, màng ghép PA/PET/AL), kích thước và độ dày (mic/gauge), số lượng đặt hàng mỗi đợt, và quy cách gia công (dạng cuộn, cắt túi, dập nhiệt, in trục đồng). Chúng tôi là xưởng sản xuất trực tiếp nên luôn có mức giá sỉ tốt nhất cho khách hàng doanh nghiệp.',
+    },
+    {
+      q: 'Số lượng tối thiểu (MOQ) khi đặt hàng bao bì là bao nhiêu?',
+      a: 'Đối với các dòng màng co cuộn PVC, POF, PE quy cách phổ thông có sẵn, chúng tôi hỗ trợ đơn hàng từ 1 cuộn hoặc từ 25kg để khách hàng thử nghiệm. Đối với quy cách cắt túi hoặc in ấn trục đồng theo kích thước riêng, số lượng tối thiểu từ 100kg - 300kg tùy cấu trúc màng.',
+    },
+    {
+      q: 'Sản phẩm bao bì của công ty đạt những chứng nhận chất lượng nào?',
+      a: `Toàn bộ sản phẩm màng co và bao bì của ${settings.short_name} đều được sản xuất từ hạt nhựa nguyên sinh cao cấp, đạt các chứng nhận an toàn tiếp xúc thực phẩm của FDA (Hoa Kỳ), RoHS, chứng nhận hệ thống quản lý chất lượng ISO 9001:2015, an toàn tuyệt đối cho người tiêu dùng và đủ điều kiện xuất khẩu.`,
+    },
+    {
+      q: 'Công ty có hỗ trợ xuất khẩu bao bì ra nước ngoài không?',
+      a: 'Có. Chúng tôi thường xuyên sản xuất và xuất khẩu các dòng màng co POF, túi PA hút chân không và màng ghép cho các đối tác tại Nhật Bản, Hàn Quốc, Mỹ và các nước Đông Nam Á với đầy đủ chứng từ CO, CQ và chứng nhận kiểm nghiệm quốc tế.',
+    },
+    {
+      q: 'Thời gian sản xuất và giao hàng tại xưởng là bao lâu?',
+      a: 'Đối với hàng có sẵn trong kho: giao hàng trong 2 - 24 giờ và 1 - 3 ngày trên toàn quốc. Đối với đơn hàng đặt sản xuất theo quy cách riêng: thời gian từ 3 - 5 ngày làm việc. Đối với đơn hàng in ống đồng: từ 7 - 12 ngày (bao gồm thời gian khắc trục và duyệt mẫu).',
+    },
+    {
+      q: 'Khách hàng có được nhận mẫu thử (sample) trước khi đặt hàng không?',
+      a: `Hoàn toàn được! ${settings.short_name} sẵn sàng gửi mẫu màng co cắt sẵn hoặc màng cuộn mẫu miễn phí đến tận nơi để quý khách test thử trên máy co màng hoặc sản phẩm thực tế trước khi ký hợp đồng sản xuất.`,
+    },
+  ];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -106,617 +168,1186 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="mcvt-home">
-        {/* ================= 1. HERO ================= */}
-        <section className="mcvt-hero" aria-labelledby="mcvt-h1">
-          <div className="mcvt-wrap mcvt-hero__grid">
-            <div className="mcvt-hero__text">
-              <p className="mcvt-eyebrow">
-                {settings.company_name} · Màng co &amp; vật liệu đóng gói
-              </p>
-              <h1 id="mcvt-h1">
-                Màng Co PVC, POF, PE – Cung cấp màng co nhiệt cho đóng gói
-              </h1>
-              <p className="mcvt-lead">
-                Tư vấn chọn đúng loại màng, khổ và độ dày theo sản phẩm và máy
-                co bạn đang dùng. Gửi quy cách – nhận báo giá.
-              </p>
-              <div className="mcvt-btns">
-                <a className="mcvt-btn mcvt-btn--primary" href="#bao-gia">
-                  Yêu cầu báo giá
-                </a>
-                <a className="mcvt-btn mcvt-btn--ghost" href="#danh-muc">
-                  Xem danh mục sản phẩm
+      <div className="bg-white text-slate-800">
+        {/* ================= 1. HERO BANNER HỆ MẶT TRỜI ================= */}
+        <SolarHeroBanner products={products} settings={settings} />
+
+        {/* ================= 2. VỀ BAO BÌ THÀNH PHÁT (2 CỘT GIỚI THIỆU + VIDEO XƯỞNG) ================= */}
+        <section className="py-16 md:py-20 bg-white border-b border-slate-100">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Tiêu đề chính căn giữa + Gạch chân ngắn */}
+            <div className="text-center mb-10 md:mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal">
+                Về <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] to-[#2563eb]">{settings.short_name || 'Bao Bì Thành Phát'}</span>
+              </h2>
+              <div className="w-16 h-1 rounded-full bg-gradient-to-r from-[#0284c7] to-[#2563eb] mx-auto mt-3.5"></div>
+            </div>
+
+            {/* Bố cục 2 cột: Cột Trái (Nội dung + Nút) & Cột Phải (Video Xưởng) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              {/* CỘT TRÁI: VĂN BẢN GIỚI THIỆU & NÚT CHI TIẾT */}
+              <div className="lg:col-span-6 flex flex-col justify-between">
+                <p className="text-slate-700 text-[15px] md:text-[15.5px] leading-[1.85] text-justify">
+                  <strong className="text-[#0f2d59]">{settings.short_name || 'Bao Bì Thành Phát'}</strong> là thương hiệu thuộc{' '}
+                  <strong className="text-[#0f2d59]">{settings.company_name}</strong>, chuyên sản xuất và in ấn màng co nhiệt PVC, POF, PE và bao bì màng ghép theo yêu cầu. Với hơn 15 năm kinh nghiệm, chúng tôi đồng hành cùng các thương hiệu trong và ngoài nước trong quá trình phát triển giải pháp bao bì sản phẩm.{' '}
+                  <strong className="text-[#0f2d59]">{settings.short_name || 'Bao Bì Thành Phát'}</strong> sở hữu nhà máy 10.000m², hệ thống in trục đồng lên đến 10 màu, công nghệ thổi màng &amp; ghép màng hiện đại cùng dây chuyền máy móc phục vụ sản xuất quy mô lớn, đáp ứng nhu cầu của nhiều ngành hàng như nước giải khát, thực phẩm, đông lạnh, nông sản, hóa mỹ phẩm, dược phẩm và công nghiệp. Sản phẩm đáp ứng các tiêu chuẩn Quatest 3, ISO 22000:2018 và ATVSTP, đồng thời áp dụng chính sách hàng lỗi 1 đổi 1, giá trực tiếp tại xưởng và hỗ trợ giao hàng toàn quốc.
+                </p>
+
+                <div className="mt-8 text-center">
+                  <Link
+                    href="/gioi-thieu"
+                    className="inline-flex items-center justify-center px-9 py-3.5 rounded-full text-sm font-bold text-white bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] shadow-md hover:shadow-lg hover:shadow-sky-500/30 hover:-translate-y-0.5 transition-all duration-300"
+                  >
+                    Giới Thiệu Chi Tiết
+                  </Link>
+                </div>
+              </div>
+
+              {/* CỘT PHẢI: KHUNG VIDEO GIỚI THIỆU XƯỞNG */}
+              <div className="lg:col-span-6">
+                <a
+                  href={settings.video_intro_url || settings.youtube_url || 'https://www.youtube.com'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block relative aspect-video rounded-2xl overflow-hidden shadow-xl border border-slate-200/80 bg-slate-900 group cursor-pointer"
+                >
+                  {/* Ảnh nền dây chuyền nhà xưởng */}
+                  <img
+                    src={settings.about_banner_url || settings.banner_url || '/media/banners/banner-mang-co.webp'}
+                    alt={`Giới Thiệu Xưởng ${settings.short_name || 'Bao Bì Thành Phát'}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    loading="lazy"
+                  />
+
+                  {/* Lớp phủ tối nhẹ trên đỉnh và dưới đáy chuẩn YouTube */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/15 to-black/60 group-hover:via-black/5 transition-colors duration-300" />
+
+                  {/* Header Video: Avatar Logo + Tiêu đề kênh */}
+                  <div className="absolute top-4 left-4 right-4 flex items-center gap-3 z-10">
+                    <div className="w-10 h-10 rounded-full bg-white p-1.5 shadow-md flex items-center justify-center shrink-0 overflow-hidden">
+                      <img
+                        src="/logo.webp"
+                        alt="Logo"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="text-white drop-shadow-sm overflow-hidden">
+                      <div className="text-sm md:text-base font-bold truncate">
+                        Giới Thiệu Xưởng {settings.short_name || 'Bao Bì Thành Phát'}
+                      </div>
+                      <div className="text-xs text-white/85 truncate">
+                        {settings.short_name || 'Bao Bì Thành Phát'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nút Play YouTube ở chính giữa */}
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="w-16 h-11 md:w-[68px] md:h-[48px] rounded-2xl bg-[#ff0000] group-hover:bg-[#dc2626] flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300">
+                      <svg className="w-7 h-7 text-white fill-current ml-0.5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Footer Video Trái: Nút Chia sẻ & Xem sau */}
+                  <div className="absolute bottom-3.5 left-4 flex items-center gap-2.5 z-10">
+                    <span className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+                      </svg>
+                    </span>
+                    <span className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+                      </svg>
+                    </span>
+                  </div>
+
+                  {/* Footer Video Phải: Huy hiệu Xem trên YouTube */}
+                  <div className="absolute bottom-3.5 right-4 z-10">
+                    <div className="bg-black/75 hover:bg-black/90 backdrop-blur-xs text-white text-xs font-semibold px-3.5 py-2 rounded-md flex items-center gap-1.5 shadow-md transition">
+                      <span>Xem trên</span>
+                      <span className="inline-flex items-center gap-1 font-bold tracking-tight">
+                        <svg className="w-4 h-4 text-white fill-current" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                        </svg>
+                        <span>YouTube</span>
+                      </span>
+                    </div>
+                  </div>
                 </a>
               </div>
-              <ul className="mcvt-hero__contact">
-                <li>
-                  <a href={`tel:${cleanPhone}`}>
-                    Hotline: <strong>{settings.hotline}</strong>
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href={`https://zalo.me/${cleanZalo}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 3. CHỌN KIỂU DÁNG BAO BÌ ĐÓNG GÓI ================= */}
+        <section className="py-16 md:py-20 bg-[#f4f8fc]">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <span className="inline-block px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-gradient-to-r from-[#0284c7] to-[#2563eb] text-white shadow-xs mb-3">
+                Sản Phẩm Bán Chạy
+              </span>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal mb-3">
+                Chọn Kiểu Dáng Bao Bì Đóng Gói
+              </h2>
+              <p className="text-slate-600 text-base">
+                Đa dạng kiểu dáng, đáp ứng chính xác yêu cầu bao bọc, bảo quản và nhận diện thương hiệu.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-6">
+              {packagingShapes.map((shape) => (
+                <div
+                  key={shape.id}
+                  className="group relative bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-4 shadow-md shadow-slate-200/70 hover:shadow-xl hover:shadow-sky-500/15 hover:-translate-y-2 hover:border-sky-400 transition-all duration-300 ease-out flex flex-col items-center text-center overflow-hidden"
+                >
+                  {/* Thanh chạy ngang màu xanh da trời chủ đạo trên đỉnh khi hover (giống Header) */}
+                  <span
+                    className="absolute top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#0ea5e9] via-[#2563eb] to-[#0284c7] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-left z-30 pointer-events-none"
+                    aria-hidden="true"
+                  />
+
+                  {/* Hiệu ứng vệt sáng bóng loáng (Glossy Shine Sweep) lướt qua khi hover */}
+                  <span
+                    className="pointer-events-none absolute top-0 -left-[120%] w-[70%] h-full bg-gradient-to-r from-transparent via-white/65 to-transparent -skew-x-12 group-hover:left-[140%] transition-all duration-700 ease-out z-20"
+                    aria-hidden="true"
+                  />
+
+                  {/* Khung ảnh vuông có sẵn khung thương hiệu chuẩn */}
+                  <Link
+                    href={shape.link}
+                    className="w-full max-w-[260px] sm:max-w-none aspect-square rounded-xl bg-[#f1f4f9] overflow-hidden mb-4 relative block border border-slate-100 mx-auto"
                   >
-                    Chat Zalo
-                  </a>
-                </li>
-                <li>
-                  <a href={`mailto:${settings.email}`}>{settings.email}</a>
-                </li>
-              </ul>
-            </div>
+                    <img
+                      src={shape.img}
+                      alt={shape.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  </Link>
 
-            <figure className="mcvt-hero__media">
-              <img
-                src={settings.hero_banner_url || '/media/products/hero-mang-co.webp'}
-                alt={`Các loại màng co PVC, POF, PE của ${settings.company_name}`}
-                width={960}
-                height={720}
-                fetchPriority="high"
-                loading="eager"
-                decoding="async"
-              />
-            </figure>
+                  <h3 className="text-base sm:text-sm md:text-[15px] font-extrabold text-[#0f2d59] group-hover:text-[#0284c7] transition-colors uppercase tracking-wide mb-2 sm:mb-3.5 line-clamp-1">
+                    <Link href={shape.link}>{shape.name}</Link>
+                  </h3>
+
+                  {shape.desc && (
+                    <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 mb-3.5 max-w-xs sm:max-w-none">
+                      {shape.desc}
+                    </p>
+                  )}
+
+                  <Link
+                    href={shape.link}
+                    className="mt-auto inline-flex items-center justify-center px-7 py-2.5 sm:py-2 rounded-full text-xs font-bold text-white bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] shadow-sm group-hover:shadow-md group-hover:shadow-sky-500/30 transition-all duration-300"
+                  >
+                    Xem chi tiết
+                  </Link>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* ================= 2. TRUST STRIP ================= */}
-        <section className="mcvt-trust" aria-label="Điểm nổi bật">
-          <div className="mcvt-wrap">
-            <ul className="mcvt-trust__list">
-              <li>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h16M4 12h16M4 17h10" />
-                </svg>
-                <div>
-                  <strong>4 dòng màng co</strong>
-                  <span>PVC · POF · Nhiệt · PE</span>
-                </div>
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6" />
-                </svg>
-                <div>
-                  <strong>{shortLocationTitle}</strong>
-                  <span>{shortLocationSub}</span>
-                </div>
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M3 6h18M7 6v12M17 6v12M3 18h18" />
-                </svg>
-                <div>
-                  <strong>Tư vấn quy cách</strong>
-                  <span>Khổ, độ dày, dạng màng</span>
-                </div>
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
-                </svg>
-                <div>
-                  <strong>Báo giá nhanh</strong>
-                  <span>Qua điện thoại &amp; Zalo</span>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        {/* ================= 3. DANH MỤC MÀNG CO (4 SQUARE IMAGE CARDS) ================= */}
-        <section
-          className="mcvt-section"
-          id="danh-muc"
-          aria-labelledby="mcvt-dm"
-        >
-          <div className="mcvt-wrap">
-            <div className="mcvt-head">
-              <h2 id="mcvt-dm">Danh mục màng co</h2>
-              <p>Chọn nhóm màng phù hợp với sản phẩm cần đóng gói.</p>
+        {/* ================= 4. BAO BÌ ĐÓNG GÓI THEO NGÀNH HÀNG ================= */}
+        <section className="py-16 md:py-20 bg-[#f4f8fc]">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <span className="inline-block px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-gradient-to-r from-[#0284c7] to-[#2563eb] text-white shadow-xs mb-3">
+                Phân Loại Ứng Dụng
+              </span>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal mb-3">
+                Bao Bì Đóng Gói Theo Ngành Hàng
+              </h2>
+              <p className="text-slate-600 text-base">
+                Giải pháp được nghiên cứu cấu trúc tối ưu cho từng đặc thù bảo quản và chuỗi cung ứng thực tế.
+              </p>
             </div>
 
-            <div className="mcvt-cards">
-              {categories
-                .slice()
-                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                .slice(0, 4)
-                .map((cat) => {
-                const img =
-                  cat.image_url ||
-                  (cat.slug === 'mang-co-pvc'
-                    ? '/media/categories/mang-co-pvc.webp'
-                    : cat.slug === 'mang-co-pof'
-                    ? '/media/categories/mang-co-pof.webp'
-                    : cat.slug === 'mang-co-nhiet'
-                    ? '/media/categories/mang-co-nhiet.webp'
-                    : '/media/categories/mang-co-pe.webp');
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {industriesList.map((ind: any, iIdx: number) => (
+                <div
+                  key={`ind-${iIdx}`}
+                  className="group relative rounded-2xl bg-white border border-slate-200/80 p-4 shadow-md shadow-slate-200/70 hover:shadow-xl hover:shadow-sky-500/15 hover:-translate-y-2 hover:border-sky-400 transition-all duration-300 ease-out flex flex-col items-center text-center justify-between overflow-hidden"
+                >
+                  {/* Thanh chạy ngang màu xanh da trời trên đỉnh khi hover */}
+                  <span
+                    className="absolute top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#0ea5e9] via-[#2563eb] to-[#0284c7] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-left z-30 pointer-events-none"
+                    aria-hidden="true"
+                  />
 
-                return (
-                  <article key={cat.id || cat.slug} className="mcvt-card">
+                  {/* Hiệu ứng vệt sáng bóng loáng (Glossy Shine Sweep) lướt qua khi hover */}
+                  <span
+                    className="pointer-events-none absolute top-0 -left-[120%] w-[70%] h-full bg-gradient-to-r from-transparent via-white/65 to-transparent -skew-x-12 group-hover:left-[140%] transition-all duration-700 ease-out z-20"
+                    aria-hidden="true"
+                  />
+
+                  <div className="w-full">
+                    {/* Ảnh bao bì thực tế của ngành hàng */}
                     <Link
-                      className="mcvt-card__img"
-                      href={`/${cat.slug}`}
-                      tabIndex={-1}
-                      aria-hidden="true"
+                      href={ind.link}
+                      className="w-full aspect-square rounded-xl bg-[#f1f4f9] relative overflow-hidden flex items-center justify-center border border-slate-100 mb-4 block"
                     >
                       <img
-                        src={img}
-                        alt={`Ứng dụng màng co ${cat.name} - ${settings.company_name}`}
-                        width={600}
-                        height={600}
+                        src={ind.image_url}
+                        alt={ind.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
-                        decoding="async"
                       />
                     </Link>
-                    <div className="mcvt-card__body">
-                      <h3>
-                        <Link href={`/${cat.slug}`}>{cat.name}</Link>
+
+                    <div className="px-2 mb-4">
+                      <h3 className="text-base font-extrabold text-[#0f2d59] group-hover:text-[#0284c7] transition-colors mb-2 line-clamp-1 uppercase tracking-wide">
+                        <Link href={ind.link}>{ind.name}</Link>
                       </h3>
-                      <p>
-                        {cat.description ||
-                          `Cung cấp ${cat.name} chất lượng cao, đúng khổ và quy cách theo yêu cầu đóng gói.`}
+                      <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                        {ind.desc}
                       </p>
-                      <Link className="mcvt-link" href={`/${cat.slug}`}>
-                        Xem {cat.name.toLowerCase()} →
-                      </Link>
                     </div>
-                  </article>
+                  </div>
+
+                  <Link
+                    href={ind.link}
+                    className="mt-auto inline-flex items-center justify-center px-8 py-2.5 rounded-full text-xs font-bold text-white bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0369a1] hover:to-[#1d4ed8] shadow-sm group-hover:shadow-md group-hover:shadow-sky-500/30 transition-all duration-300"
+                  >
+                    Xem chi tiết
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 7. 10.000+ DOANH NGHIỆP ĐÃ HỢP TÁC (2 HÀNG MARQUEE NGƯỢC CHIỀU) ================= */}
+        <section className="py-14 md:py-16 bg-white border-b border-slate-100 overflow-hidden">
+          <div className="max-w-[1280px] mx-auto px-4 mb-10 text-center">
+            <h2 className="text-2xl md:text-3xl font-black text-[#0f2d59] tracking-normal">
+              10.000+ Doanh Nghiệp Đã Hợp Tác Cùng{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] to-[#2563eb]">
+                {settings.short_name || 'Bao Bì Thành Phát'}
+              </span>
+            </h2>
+            <div className="w-14 h-1 rounded-full bg-gradient-to-r from-[#0284c7] to-[#2563eb] mx-auto mt-3"></div>
+          </div>
+
+          <div className="relative w-full overflow-hidden space-y-8">
+            {/* Lớp mờ 2 bên tạo hiệu ứng fade mượt */}
+            <div className="absolute left-0 top-0 bottom-0 w-20 md:w-32 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-20 md:w-32 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+
+            {/* HÀNG 1: CHẠY TỪ PHẢI SANG TRÁI */}
+            <div className="animate-marquee-left flex items-center">
+              {[0, 1].map((dupIdx) => (
+                <div
+                  key={`marquee-row1-${dupIdx}`}
+                  className="flex items-center gap-14 md:gap-20 pr-14 md:pr-20 shrink-0"
+                >
+                  {/* 1. PETROLIMEX */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="w-11 h-11 rounded-lg bg-[#00549a] flex items-center justify-center shadow-xs relative overflow-hidden">
+                      <span className="text-2xl font-black text-[#f58220] italic leading-none drop-shadow-xs">P</span>
+                    </div>
+                    <span className="text-[9px] font-black tracking-wider text-[#00549a] mt-1">PETROLIMEX</span>
+                  </div>
+
+                  {/* 2. VINHOMES */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <svg className="w-8 h-6 mb-0.5" viewBox="0 0 48 30" fill="none">
+                      <path d="M24 22 C18 12 10 8 4 10 C12 6 19 9 24 16 C29 8 36 3 44 4 C36 8 29 14 24 22 Z" fill="#c59b27" />
+                      <path d="M24 27 C20 19 14 15 8 16 C14 13 20 15 24 21 C28 14 34 10 40 11 C34 14 28 20 24 27 Z" fill="#d4af37" />
+                    </svg>
+                    <div className="text-sm font-serif tracking-widest font-bold leading-none">
+                      <span className="text-[#c59b27]">VIN</span>
+                      <span className="text-[#1b365d]">HOMES</span>
+                    </div>
+                  </div>
+
+                  {/* 3. VIAGS */}
+                  <div className="flex items-center gap-2.5 h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="w-10 h-10 rounded-full bg-[#006884] flex items-center justify-center shrink-0">
+                      <svg className="w-7 h-7" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 7 L19 15 L25 11 L21 19 L27 19 L20 23 L12 23 L5 19 L11 19 L7 11 L13 15 Z" fill="#eab308" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-lg font-serif font-extrabold tracking-wide text-[#006884] leading-none">VIAGS</span>
+                      <span className="text-[7px] uppercase tracking-wider text-[#006884]/80 font-semibold mt-0.5">Vietnam Airport Ground Services</span>
+                    </div>
+                  </div>
+
+                  {/* 4. TNG */}
+                  <div className="flex items-center gap-2 h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <svg className="w-7 h-7 -mt-2" viewBox="0 0 32 32" fill="none">
+                      <g stroke="#f37021" strokeWidth="3.2" strokeLinecap="round">
+                        <line x1="16" y1="3" x2="16" y2="29" />
+                        <line x1="3" y1="16" x2="29" y2="16" />
+                        <line x1="6.8" y1="6.8" x2="25.2" y2="25.2" />
+                        <line x1="25.2" y1="6.8" x2="6.8" y2="25.2" />
+                      </g>
+                      <circle cx="16" cy="16" r="3.5" fill="#ffffff" />
+                    </svg>
+                    <span className="text-3xl font-black tracking-tight text-[#e31b23] leading-none">TNG</span>
+                  </div>
+
+                  {/* 5. HABECO */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xl font-black tracking-tight text-[#2e6b34] leading-none">HABECO</span>
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2 L14.5 8.5 L21 9.5 L16 14 L17.5 20.5 L12 17 L6.5 20.5 L8 14 L3 9.5 L9.5 8.5 Z" fill="#d4af37" opacity="0.85" />
+                      </svg>
+                    </div>
+                    <span className="text-[9px] font-semibold text-[#b48a28] tracking-wide">Sức bật Việt Nam</span>
+                  </div>
+
+                  {/* 6. VINAMILK */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <span className="text-xl font-black tracking-tight text-[#0033a0] leading-none">VINAMILK</span>
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-[#0284c7] mt-1">EST 1976</span>
+                  </div>
+
+                  {/* 7. MASAN */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-[#e31b23] to-[#f58220]"></div>
+                      <span className="text-xl font-black tracking-wider text-[#004b87] leading-none">MASAN</span>
+                    </div>
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mt-1">CONSUMER</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* HÀNG 2: CHẠY TỪ TRÁI SANG PHẢI (NGƯỢC CHIỀU HÀNG 1) */}
+            <div className="animate-marquee-right flex items-center">
+              {[0, 1].map((dupIdx) => (
+                <div
+                  key={`marquee-row2-${dupIdx}`}
+                  className="flex items-center gap-14 md:gap-20 pr-14 md:pr-20 shrink-0"
+                >
+                  {/* 1. SABECO */}
+                  <div className="flex items-center gap-2 h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="w-8 h-8 rounded-full border-2 border-[#d49a2a] flex items-center justify-center text-[#d49a2a] font-black text-xs">
+                      龍
+                    </div>
+                    <span className="text-lg font-extrabold tracking-wide text-[#d49a2a]">SABECO</span>
+                  </div>
+
+                  {/* 2. SKODA */}
+                  <div className="flex items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <span className="text-xl font-black tracking-[0.22em] text-[#114b3a] uppercase">SKODA</span>
+                  </div>
+
+                  {/* 3. DELTA */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <svg className="w-10 h-9" viewBox="0 0 40 34" fill="none">
+                      <polygon points="20,2 6,32 20,32" fill="#1d70b8" />
+                      <polygon points="20,2 34,32 20,32" fill="#003d73" />
+                      <polygon points="14,16 6,32 22,32" fill="#38bdf8" opacity="0.85" />
+                    </svg>
+                    <span className="text-xs font-black tracking-widest text-[#003d73] leading-none mt-0.5">DELTA</span>
+                  </div>
+
+                  {/* 4. Vietcombank */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="flex items-end gap-1">
+                      <span className="text-lg font-serif font-extrabold text-[#005a2b] leading-none">Vietcombank</span>
+                      <svg className="w-6 h-6 -mb-0.5" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 8 C4 4 10 4 12 9 C14 4 20 4 20 8 C20 14 12 20 12 20 C12 20 4 14 4 8 Z" fill="#007f3e" />
+                        <path d="M8 9 L12 16 L16 9 Z" fill="#84bd00" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* 5. BAOVIET Bank */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-black text-[#00468c] tracking-tight">BAOVIET</span>
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-b from-[#eab308] to-[#a16207] flex items-center justify-center text-white text-[9px] font-bold">
+                        BV
+                      </div>
+                      <span className="text-sm font-bold text-[#00468c]">Bank</span>
+                    </div>
+                    <span className="text-[7px] font-bold uppercase tracking-wider text-[#00468c]/80 mt-0.5">NGÂN HÀNG BẢO VIỆT</span>
+                  </div>
+
+                  {/* 6. TH true MILK */}
+                  <div className="flex items-center gap-1.5 h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <span className="text-2xl font-black text-[#003da5] tracking-tighter">TH</span>
+                    <div className="flex flex-col leading-none">
+                      <span className="text-[10px] italic font-bold text-[#0284c7]">true</span>
+                      <span className="text-xs font-extrabold text-[#003da5] tracking-wider">MILK</span>
+                    </div>
+                  </div>
+
+                  {/* 7. ACECOOK */}
+                  <div className="flex flex-col items-center justify-center h-16 shrink-0 select-none hover:scale-105 transition-transform">
+                    <div className="px-3 py-0.5 rounded-full bg-[#e60012] text-white font-black text-xs tracking-wider">
+                      ACECOOK
+                    </div>
+                    <span className="text-[8px] font-bold text-slate-600 tracking-widest mt-0.5">VIETNAM</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+
+
+
+
+        {/* ================= 11. THAM QUAN NHÀ XƯỞNG & QUY TRÌNH SẢN XUẤT ================= */}
+        <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/60 relative overflow-hidden border-t border-slate-100">
+          {/* Ambient decorative lighting */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] sm:w-[900px] h-[350px] bg-gradient-to-tr from-sky-100/40 to-blue-100/30 blur-3xl rounded-full pointer-events-none -z-0" />
+
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            {/* Header section */}
+            <div className="text-center max-w-3xl mx-auto mb-10">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs mb-3">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <Factory className="w-3.5 h-3.5 text-blue-600" />
+                <span>Tiêu Chuẩn Xưởng &amp; Dây Chuyền Khép Kín</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#072554] tracking-tight mb-3">
+                Quy Trình 6 Bước Sản Xuất Tại Xưởng{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] via-[#2563eb] to-[#1d4ed8]">
+                  {settings.short_name || 'Bao Bì Thành Phát'}
+                </span>
+              </h2>
+              <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-4">
+                Khép kín từ khâu tư vấn cấu trúc màng đến kiểm tra KCS chất lượng trước khi bàn giao.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs font-bold text-slate-700">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/90 shadow-2xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  100% Hạt Nhựa Nguyên Sinh
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/90 shadow-2xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
+                  Kiểm Định KCS Độ Bền Kéo Đứt
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/90 shadow-2xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" />
+                  Đổi Trả 100% Nếu Sai Quy Cách
+                </span>
+              </div>
+            </div>
+
+            {/* Desktop Step Roadmap Timeline */}
+            <div className="hidden lg:flex items-center justify-between max-w-5xl mx-auto mb-10 px-5 py-3.5 bg-white/95 backdrop-blur-xs rounded-2xl border border-slate-200/90 shadow-xs">
+              {[
+                { num: '01', title: 'Khảo Sát & Đo Mẫu' },
+                { num: '02', title: 'Thiết Kế 3D Tối Ưu' },
+                { num: '03', title: 'Chế Bản Khắc Trục' },
+                { num: '04', title: 'Thổi Màng & In' },
+                { num: '05', title: 'Chia Cuộn / Cắt Túi' },
+                { num: '06', title: 'KCS & Giao Hàng' },
+              ].map((step, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-gradient-to-r from-[#0284c7] to-[#2563eb] text-white text-[11px] font-black font-mono flex items-center justify-center shadow-xs">
+                      {step.num}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 whitespace-nowrap">
+                      {step.title}
+                    </span>
+                  </div>
+                  {idx < 5 && (
+                    <div className="w-5 xl:w-9 h-0.5 bg-gradient-to-r from-blue-300 to-slate-200 rounded-full" />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* 6 Bước Quy Trình Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {[
+                {
+                  step: '01',
+                  badge: 'Bước 01',
+                  tag: 'Khảo sát tận nơi',
+                  title: 'Tiếp Nhận & Khảo Sát Sản Phẩm',
+                  desc: 'Tìm hiểu kích thước, trọng lượng, tính chất sản phẩm cần bọc và loại máy co/hút khách hàng đang sử dụng.',
+                  highlight: 'Đo mẫu thực tế & test thử màng miễn phí',
+                  gradient: 'from-[#0284c7] to-[#0369a1]',
+                  bgSoft: 'bg-sky-50',
+                  borderSoft: 'border-sky-200',
+                  textAccent: 'text-sky-600',
+                  iconShadow: 'shadow-sky-500/30',
+                  icon: FileSearch,
+                },
+                {
+                  step: '02',
+                  badge: 'Bước 02',
+                  tag: 'Tối ưu chi phí',
+                  title: 'Tư Vấn Quy Cách & Thiết Kế 3D',
+                  desc: 'Tư vấn chất liệu (PVC, POF, PE, ghép nhôm), tính toán khổ màng, độ dày tối ưu và dựng mẫu thiết kế.',
+                  highlight: 'Tính đúng khổ màng, tránh lãng phí 15-20%',
+                  gradient: 'from-[#2563eb] to-[#1d4ed8]',
+                  bgSoft: 'bg-blue-50',
+                  borderSoft: 'border-blue-200',
+                  textAccent: 'text-blue-600',
+                  iconShadow: 'shadow-blue-500/30',
+                  icon: Boxes,
+                },
+                {
+                  step: '03',
+                  badge: 'Bước 03',
+                  tag: 'Độ nét 100%',
+                  title: 'Chế Bản & Khắc Trục Ống Đồng',
+                  desc: 'Chế tạo trục in điện tử siêu mịn, duyệt màu Cromalin chuẩn xác trước khi đưa vào dây chuyền in chính thức.',
+                  highlight: 'Khắc điện tử vi điểm, màu sắc chân thực',
+                  gradient: 'from-[#4f46e5] to-[#4338ca]',
+                  bgSoft: 'bg-indigo-50',
+                  borderSoft: 'border-indigo-200',
+                  textAccent: 'text-indigo-600',
+                  iconShadow: 'shadow-indigo-500/30',
+                  icon: Printer,
+                },
+                {
+                  step: '04',
+                  badge: 'Bước 04',
+                  tag: 'Công nghệ cao',
+                  title: 'Thổi Màng & In Tự Động Tốc Độ Cao',
+                  desc: 'Thổi màng từ hạt nhựa nguyên sinh cao cấp và in ống đồng tự động với độ ổn định màu sắc tuyệt đối.',
+                  highlight: 'Nhựa nguyên sinh, màng dẻo dai không mùi',
+                  gradient: 'from-[#0d9488] to-[#0f766e]',
+                  bgSoft: 'bg-teal-50',
+                  borderSoft: 'border-teal-200',
+                  textAccent: 'text-teal-600',
+                  iconShadow: 'shadow-teal-500/30',
+                  icon: Flame,
+                },
+                {
+                  step: '05',
+                  badge: 'Bước 05',
+                  tag: 'Đa quy cách',
+                  title: 'Ghép Phức Hợp & Chia Cuộn / Cắt Túi',
+                  desc: 'Ghép màng đa lớp không dung môi, chia cuộn theo mét hoặc dập đáy, cắt túi theo đúng quy cách đặt hàng.',
+                  highlight: 'Đường hàn nhiệt sắc nét, chịu lực vượt trội',
+                  gradient: 'from-[#d97706] to-[#b45309]',
+                  bgSoft: 'bg-amber-50',
+                  borderSoft: 'border-amber-200',
+                  textAccent: 'text-amber-600',
+                  iconShadow: 'shadow-amber-500/30',
+                  icon: Scissors,
+                },
+                {
+                  step: '06',
+                  badge: 'Bước 06',
+                  tag: 'Chuẩn ISO/KCS',
+                  title: 'Kiểm Tra KCS & Giao Hàng Tận Nơi',
+                  desc: 'Kiểm định độ bền kéo đứt, độ chịu lực đường hàn và đóng gói pallet giao tận kho khách hàng đúng hẹn.',
+                  highlight: 'Bảo hành đổi trả 100% nếu lỗi kỹ thuật',
+                  gradient: 'from-[#16a34a] to-[#15803d]',
+                  bgSoft: 'bg-emerald-50',
+                  borderSoft: 'border-emerald-200',
+                  textAccent: 'text-emerald-600',
+                  iconShadow: 'shadow-emerald-500/30',
+                  icon: ShieldCheck,
+                },
+              ].map((st) => {
+                const StepIcon = st.icon;
+                return (
+                  <div
+                    key={`step-${st.step}`}
+                    className="group relative bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 hover:border-blue-400/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_16px_36px_-6px_rgba(37,99,235,0.18)] hover:-translate-y-1.5 transition-all duration-300 overflow-hidden flex flex-col justify-between"
+                  >
+                    {/* Top Gradient Accent Bar */}
+                    <div
+                      className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${st.gradient} opacity-90 group-hover:h-1.5 group-hover:opacity-100 transition-all duration-300`}
+                    />
+
+                    {/* Background Big Number Watermark */}
+                    <span className="absolute -top-3 -right-2 text-7xl font-black font-mono text-slate-100/90 group-hover:text-blue-100/70 transition-colors pointer-events-none select-none tracking-tighter">
+                      {st.step}
+                    </span>
+
+                    <div>
+                      {/* Card Top: Icon + Step Badge */}
+                      <div className="flex items-center justify-between mb-5 relative z-10">
+                        <div
+                          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${st.gradient} text-white flex items-center justify-center shadow-md ${st.iconShadow} group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300`}
+                        >
+                          <StepIcon className="w-6 h-6 stroke-[2.2]" />
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-mono group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                            {st.badge}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${st.bgSoft} ${st.textAccent} border ${st.borderSoft}`}
+                          >
+                            {st.tag}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Title & Description */}
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-blue-600 transition-colors mb-2.5 leading-snug">
+                        {st.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-5">
+                        {st.desc}
+                      </p>
+                    </div>
+
+                    {/* Bottom Highlight Tag */}
+                    <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
+                        <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${st.textAccent}`} />
+                        <span className="truncate">{st.highlight}</span>
+                      </span>
+                      <span className="text-[11px] font-extrabold text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all flex items-center shrink-0">
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          </div>
-        </section>
 
-        {/* ================= 4. 3 KHỐI SẢN PHẨM THEO DÒNG MÀNG ================= */}
-        <section className="mcvt-section mcvt-section--alt">
-          <div className="mcvt-wrap">
-            {/* ROW 1: SẢN PHẨM MÀNG CO PVC */}
-            <div className="mcvt-rowhead">
-              <h2>Sản phẩm màng co PVC</h2>
-              <Link className="mcvt-link" href="/mang-co-pvc">
-                Xem tất cả màng co PVC →
-              </Link>
-            </div>
-            <div className="mcvt-post-grid">
-              {pvcProducts.map((prod) => (
-                <article key={`pvc-${prod.id}`} className="mcvt-post-card">
-                  <Link
-                    href={`/san-pham/${prod.slug}`}
-                    className="mcvt-post-card__img"
-                  >
-                    <img
-                      src={prod.thumbnail_url}
-                      alt={prod.name}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </Link>
-                  <div className="mcvt-post-card__body">
-                    <h3 className="mcvt-post-card__title">
-                      <Link href={`/san-pham/${prod.slug}`}>{prod.name}</Link>
-                    </h3>
-                    <div className="text-xs text-blue-600 font-bold mb-3 flex items-center gap-1.5">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                      <span>{prod.price_label || 'Liên hệ báo giá sỉ'}</span>
-                    </div>
-                    <div className="mcvt-post-card__cta">
-                      <Link
-                        className="mcvt-post-card__btn"
-                        href={`/san-pham/${prod.slug}`}
-                      >
-                        Xem chi tiết
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {/* ROW 2: SẢN PHẨM MÀNG CO POF */}
-            <div className="mcvt-rowhead">
-              <h2>Sản phẩm màng co POF</h2>
-              <Link className="mcvt-link" href="/mang-co-pof">
-                Xem tất cả màng co POF →
-              </Link>
-            </div>
-            <div className="mcvt-post-grid">
-              {pofProducts.map((prod) => (
-                <article key={`pof-${prod.id}`} className="mcvt-post-card">
-                  <Link
-                    href={`/san-pham/${prod.slug}`}
-                    className="mcvt-post-card__img"
-                  >
-                    <img
-                      src={prod.thumbnail_url}
-                      alt={prod.name}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </Link>
-                  <div className="mcvt-post-card__body">
-                    <h3 className="mcvt-post-card__title">
-                      <Link href={`/san-pham/${prod.slug}`}>{prod.name}</Link>
-                    </h3>
-                    <div className="text-xs text-blue-600 font-bold mb-3 flex items-center gap-1.5">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                      <span>{prod.price_label || 'Liên hệ báo giá sỉ'}</span>
-                    </div>
-                    <div className="mcvt-post-card__cta">
-                      <Link
-                        className="mcvt-post-card__btn"
-                        href={`/san-pham/${prod.slug}`}
-                      >
-                        Xem chi tiết
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {/* ROW 3: SẢN PHẨM MÀNG CO NHIỆT */}
-            <div className="mcvt-rowhead">
-              <h2>Sản phẩm màng co nhiệt</h2>
-              <Link className="mcvt-link" href="/mang-co-nhiet">
-                Xem tất cả màng co nhiệt →
-              </Link>
-            </div>
-            <div className="mcvt-post-grid mcvt-post-grid--last">
-              {nhietProducts.map((prod) => (
-                <article key={`nhiet-${prod.id}`} className="mcvt-post-card">
-                  <Link
-                    href={`/san-pham/${prod.slug}`}
-                    className="mcvt-post-card__img"
-                  >
-                    <img
-                      src={prod.thumbnail_url}
-                      alt={prod.name}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </Link>
-                  <div className="mcvt-post-card__body">
-                    <h3 className="mcvt-post-card__title">
-                      <Link href={`/san-pham/${prod.slug}`}>{prod.name}</Link>
-                    </h3>
-                    <div className="text-xs text-blue-600 font-bold mb-3 flex items-center gap-1.5">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                      <span>{prod.price_label || 'Liên hệ báo giá sỉ'}</span>
-                    </div>
-                    <div className="mcvt-post-card__cta">
-                      <Link
-                        className="mcvt-post-card__btn"
-                        href={`/san-pham/${prod.slug}`}
-                      >
-                        Xem chi tiết
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 5. BẢNG SO SÁNH PVC vs POF vs PE ================= */}
-        <section className="mcvt-section" aria-labelledby="mcvt-ss">
-          <div className="mcvt-wrap">
-            <div className="mcvt-head">
-              <h2 id="mcvt-ss">So sánh màng co PVC, POF và PE</h2>
-              <p>
-                Bảng tham khảo nhanh để chọn loại màng. Mỗi dòng sản phẩm còn có
-                nhiều độ dày và quy cách – liên hệ để được tư vấn cụ thể.
-              </p>
-            </div>
-
-            <div
-              className="mcvt-table-wrap"
-              role="region"
-              aria-label="Bảng so sánh màng co"
-              tabIndex={0}
-            >
-              <table className="mcvt-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Tiêu chí</th>
-                    <th scope="col">
-                      <Link href="/mang-co-pvc">Màng co PVC</Link>
-                    </th>
-                    <th scope="col">
-                      <Link href="/mang-co-pof">Màng co POF</Link>
-                    </th>
-                    <th scope="col">
-                      <Link href="/mang-co-pe">Màng co PE</Link>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th scope="row">Độ trong</th>
-                    <td>Cao</td>
-                    <td>Rất cao, bóng</td>
-                    <td>Trung bình</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Độ dai, chịu lực</th>
-                    <td>Trung bình, dễ giòn khi lạnh</td>
-                    <td>Cao, mềm dẻo</td>
-                    <td>Rất cao, chịu tải nặng</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Mùi khi gia nhiệt</th>
-                    <td>Có mùi</td>
-                    <td>Ít mùi</td>
-                    <td>Ít mùi</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Nhiệt độ co</th>
-                    <td>Thấp, co nhanh</td>
-                    <td>Trung bình</td>
-                    <td>Cao hơn</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Chi phí</th>
-                    <td>Kinh tế</td>
-                    <td>Trung bình</td>
-                    <td>Tuỳ độ dày</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Phù hợp</th>
-                    <td>Chai, nắp, hộp phổ thông</td>
-                    <td>Thực phẩm, mỹ phẩm, hàng trưng bày</td>
-                    <td>Bó lốc chai, kiện hàng, hàng cồng kềnh</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p className="mcvt-note">
-              Màng co nhiệt là tên gọi chung cho các loại màng co lại khi gặp
-              nhiệt – xem thêm tại{' '}
-              <Link href="/mang-co-nhiet">màng co nhiệt</Link>.
-            </p>
-          </div>
-        </section>
-
-        {/* ================= 6. CÔNG CỤ ƯỚC TÍNH KHỔ MÀNG CO (#uoc-tinh) ================= */}
-        <section
-          className="mcvt-section mcvt-section--alt"
-          id="uoc-tinh"
-          aria-labelledby="mcvt-calc-h"
-        >
-          <ShrinkFilmCalculator
-            hotline={settings.hotline}
-            companyName={settings.company_name}
-          />
-        </section>
-
-        {/* ================= 7. VIDEO + ỨNG DỤNG ================= */}
-        <section className="mcvt-section" aria-labelledby="mcvt-ud">
-          <div className="mcvt-wrap mcvt-split">
-            <div className="mcvt-split__media">
-              <video
-                controls
-                playsInline
-                preload="metadata"
-                poster="/media/products/ung-dung-mang-co-pvc.webp"
-                width={720}
-                height={1280}
-                src="https://mangcopvc.com/wp-content/uploads/2025/07/mua-mang-co-pvc-hcm.mp4"
-              />
-            </div>
-
-            <div className="mcvt-split__text">
-              <p className="mcvt-eyebrow">Video thực tế</p>
-              <h2 id="mcvt-ud">Ứng dụng của màng co trong đóng gói</h2>
-              <p>
-                Màng co ôm sát sản phẩm sau khi gia nhiệt, giúp bảo vệ hàng khỏi
-                bụi, ẩm, trầy xước và giữ bao bì gọn gàng khi trưng bày.
-              </p>
-              <ul className="mcvt-checklist">
-                <li>
-                  Bọc chai, lọ, nắp – mỹ phẩm, nước uống, dược phẩm:{' '}
-                  <Link href="/mang-co-pvc">màng co PVC</Link>,{' '}
-                  <Link href="/mang-co-pof">màng co POF</Link>
-                </li>
-                <li>
-                  Đóng gói thực phẩm, bánh kẹo, hộp quà:{' '}
-                  <Link href="/mang-co-pof">màng co POF</Link>
-                </li>
-                <li>
-                  Bọc sách, khung tranh, đồ gỗ, hộp giấy:{' '}
-                  <Link href="/mang-co-nhiet">màng co nhiệt</Link>
-                </li>
-                <li>
-                  Bó lốc chai, kiện hàng nặng:{' '}
-                  <Link href="/mang-co-pe">màng co PE</Link>
-                </li>
-              </ul>
-              <a className="mcvt-btn mcvt-btn--primary" href="#bao-gia">
-                Nhận tư vấn chọn màng
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 8. LÀM VIỆC VỚI CAO VẠN THỊNH (4 BƯỚC) ================= */}
-        <section
-          className="mcvt-section mcvt-section--alt"
-          aria-labelledby="mcvt-why"
-        >
-          <div className="mcvt-wrap">
-            <div className="mcvt-head">
-              <h2 id="mcvt-why">Làm việc với {settings.company_name}</h2>
-              <p>
-                Quy trình đơn giản cho khách hàng doanh nghiệp và cơ sở sản
-                xuất.
-              </p>
-            </div>
-
-            <ol className="mcvt-steps">
-              <li>
-                <h3>Tư vấn chọn loại màng</h3>
-                <p>
-                  Dựa trên sản phẩm, cách đóng gói và máy co đang dùng, gợi ý
-                  PVC, POF, PE hay loại phù hợp.
+            {/* Bottom Support & Sample Testing Callout */}
+            <div className="bg-gradient-to-r from-[#072554] via-[#0b3874] to-[#072554] rounded-2xl p-6 sm:p-8 text-white shadow-xl shadow-blue-950/20 mb-14 flex flex-col md:flex-row items-center justify-between gap-6 border border-blue-800/40 relative overflow-hidden">
+              <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10">
+                <span className="inline-block px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-400/30 mb-2">
+                  Hỗ Trợ Kỹ Thuật &amp; Test Mẫu Miễn Phí
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-white mb-1.5">
+                  Bạn cần tư vấn kích thước và nhận mẫu màng co thực tế tận xưởng?
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+                  Đội ngũ kỹ thuật viên {settings.short_name || 'Bao Bì Thành Phát'} sẵn sàng khảo sát kích thước hộp/sản phẩm tận nơi, hỗ trợ thử nghiệm đường co đẹp mắt trước khi đặt sản xuất hàng loạt.
                 </p>
-              </li>
-              <li>
-                <h3>Xác định quy cách</h3>
-                <p>
-                  Hỗ trợ tính khổ màng, độ dày và dạng màng theo kích thước thực
-                  tế của sản phẩm.
-                </p>
-              </li>
-              <li>
-                <h3>Báo giá theo nhu cầu</h3>
-                <p>
-                  Gửi quy cách và số lượng qua form, điện thoại hoặc Zalo để
-                  nhận báo giá.
-                </p>
-              </li>
-              <li>
-                <h3>Hỗ trợ khách doanh nghiệp</h3>
-                <p>
-                  Tiếp nhận đơn hàng định kỳ và trao đổi thông số kỹ thuật cho
-                  bộ phận sản xuất.
-                </p>
-              </li>
-            </ol>
-          </div>
-        </section>
-
-        {/* ================= 9. CÂU HỎI THƯỜNG GẶP VỀ MÀNG CO (FAQ) ================= */}
-        <section className="mcvt-section" aria-labelledby="mcvt-faq">
-          <div className="mcvt-wrap mcvt-narrow">
-            <div className="mcvt-head">
-              <h2 id="mcvt-faq">Câu hỏi thường gặp về màng co</h2>
-            </div>
-
-            <div className="mcvt-faq">
-              <details>
-                <summary>
-                  Màng co PVC và màng co POF khác nhau như thế nào?
-                </summary>
-                <p>
-                  Màng co PVC thường có giá thành thấp hơn, cứng và co nhanh,
-                  nhưng dễ giòn khi trời lạnh và có mùi khi gia nhiệt. Màng co
-                  POF mềm, trong và dai hơn, ít mùi khi co nên thường được ưu
-                  tiên cho thực phẩm, mỹ phẩm và hàng cần trưng bày. Xem chi
-                  tiết tại <Link href="/mang-co-pvc">màng co PVC</Link> và{' '}
-                  <Link href="/mang-co-pof">màng co POF</Link>.
-                </p>
-              </details>
-
-              <details>
-                <summary>
-                  Nên chọn loại màng co nào cho sản phẩm của tôi?
-                </summary>
-                <p>
-                  Tuỳ vào loại hàng, yêu cầu thẩm mỹ, ngân sách và thiết bị co.
-                  Hàng thông thường cần tối ưu chi phí có thể dùng PVC; hàng
-                  thực phẩm, mỹ phẩm, cần độ trong và bền thường dùng POF; hàng
-                  nặng, bó lốc dùng PE. Gửi mô tả sản phẩm để được tư vấn cụ
-                  thể.
-                </p>
-              </details>
-
-              <details>
-                <summary>
-                  Làm thế nào để chọn quy cách màng co phù hợp?
-                </summary>
-                <p>
-                  Cần xác định kích thước sản phẩm để tính khổ màng, chọn độ dày
-                  theo trọng lượng và mức bảo vệ mong muốn, và chọn dạng màng
-                  (cuộn đơn, cuộn ống, túi) theo cách đóng gói và máy co đang
-                  dùng. Có thể dùng{' '}
-                  <a href="#uoc-tinh">công cụ ước tính khổ màng</a> để tham khảo
-                  trước.
-                </p>
-              </details>
-
-              <details>
-                <summary>
-                  Cần cung cấp thông tin gì khi đặt hàng hoặc xin báo giá?
-                </summary>
-                <p>
-                  Loại màng, dạng màng, khổ, độ dày, số lượng dự kiến, loại máy
-                  co hoặc súng khò đang dùng và địa chỉ nhận hàng. Có ảnh sản
-                  phẩm cần đóng gói sẽ giúp tư vấn nhanh và chính xác hơn.
-                </p>
-              </details>
-
-              <details>
-                <summary>Làm thế nào để yêu cầu báo giá?</summary>
-                <p>
-                  Điền form <a href="#bao-gia">yêu cầu báo giá</a> bên dưới, gọi
-                  hotline <a href={`tel:${cleanPhone}`}>{settings.hotline}</a>,
-                  nhắn{' '}
-                  <a
-                    href={`https://zalo.me/${cleanZalo}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Zalo
-                  </a>{' '}
-                  hoặc gửi email{' '}
-                  <a href={`mailto:${settings.email}`}>{settings.email}</a>.
-                </p>
-              </details>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 10. FORM YÊU CẦU BÁO GIÁ (#bao-gia) ================= */}
-        <QuoteSection settings={settings} />
-
-        {/* ================= 11. ĐỊA CHỈ & BẢN ĐỒ (#ban-do) ================= */}
-        <section
-          className="mcvt-section mcvt-mapsec"
-          id="ban-do"
-          aria-labelledby="mcvt-map-h"
-        >
-          <div className="mcvt-wrap mcvt-mapsec__grid">
-            <div className="mcvt-mapsec__card">
-              <p className="mcvt-eyebrow">Địa chỉ</p>
-              <h2 id="mcvt-map-h">Ghé {settings.company_name}</h2>
-              <address>{settings.address}</address>
-              <p className="mcvt-mapsec__note">
-                Gọi trước để được hỗ trợ xem hàng và nhận báo giá nhanh.
-              </p>
-              <div className="mcvt-btns">
+              </div>
+              <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10 w-full sm:w-auto">
                 <a
-                  className="mcvt-btn mcvt-btn--primary"
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`tel:${cleanPhone}`}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#2563eb] hover:from-[#0284c7] hover:to-[#1d4ed8] text-white text-xs sm:text-sm font-black shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  Chỉ đường
+                  <Phone className="w-4 h-4 fill-current animate-pulse" />
+                  <span>GỌI HOTLINE: {settings.hotline}</span>
                 </a>
                 <a
-                  className="mcvt-btn mcvt-btn--ghost"
-                  href={`tel:${cleanPhone}`}
+                  href="#uoc-tinh"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-bold border border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  Gọi {settings.hotline}
+                  <span>Công Cụ Tính Khổ Màng</span>
+                  <ArrowRight className="w-4 h-4" />
                 </a>
               </div>
             </div>
 
-            <div className="mcvt-mapsec__map">
-              <iframe
-                title={`Bản đồ ${settings.company_name} – ${settings.address}`}
-                src={`https://www.google.com/maps?q=${encodedAddress}&t=m&z=16&hl=vi&output=embed`}
-                width="100%"
-                height={420}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
+            {/* Video Tham Quan Nhà Xưởng */}
+            <div className="rounded-2xl overflow-hidden border border-slate-200/90 shadow-xl bg-slate-900">
+              <div className="p-4 bg-slate-800 text-white flex items-center justify-between border-b border-slate-700/60">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-3 h-3 rounded-full bg-red-500 shadow-2xs"></span>
+                  <span className="w-3 h-3 rounded-full bg-amber-500 shadow-2xs"></span>
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-2xs"></span>
+                  <span className="text-xs font-bold text-slate-300 ml-2 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    Video Vận Hành Nhà Xưởng Sản Xuất
+                  </span>
+                </div>
+                <span className="text-xs text-slate-400 hidden sm:inline-block">
+                  {settings.company_name}
+                </span>
+              </div>
+              <div className="aspect-video w-full bg-slate-950 flex items-center justify-center">
+                <iframe
+                  className="w-full h-full"
+                  src={toYouTubeEmbedUrl(settings.video_factory_url || '')}
+                  title="Quy trình vận hành tại xưởng sản xuất"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 12. BẢNG SO SÁNH & CÔNG CỤ TÍNH KHỔ MÀNG (#uoc-tinh) ================= */}
+        <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50/80 via-white to-slate-50/60 border-t border-slate-100" id="uoc-tinh">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs mb-3">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <Calculator className="w-3.5 h-3.5 text-blue-600" />
+                <span>Công Cụ Hỗ Trợ Đóng Gói</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#072554] tracking-tight mb-3">
+                Ước Tính Khổ Màng &amp; So Sánh Vật Liệu
+              </h2>
+              <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                Giúp khách hàng nhanh chóng tính đúng khổ màng (Lay-flat) và đối chiếu đặc tính 3 loại vật liệu phù hợp nhất cho sản phẩm.
+              </p>
+            </div>
+
+            {/* Bộ công cụ tính toán thông minh */}
+            <div className="mb-14">
+              <ShrinkFilmCalculator
+                hotline={settings.hotline}
+                companyName={settings.short_name || settings.company_name}
               />
+            </div>
+
+            {/* Bảng so sánh 3 dòng màng cao cấp */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-[0_10px_35px_-8px_rgba(0,0,0,0.06)] relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5 border-b border-slate-100">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Bảng So Sánh Kỹ Thuật</span>
+                  </div>
+                  <h3 className="font-black text-[#072554] text-xl sm:text-2xl tracking-tight">
+                    So Sánh Đặc Tính 3 Loại Màng Co Phổ Biến
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    Đối chiếu chi tiết giữa Màng PVC, Màng POF và Màng PE để lựa chọn đúng vật liệu tối ưu ngân sách.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 self-start md:self-auto text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Tiêu chuẩn nhà máy sản xuất</span>
+                </div>
+              </div>
+
+              {/* Mobile swipe hint */}
+              <div className="lg:hidden text-center mb-3">
+                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                  ← Cuộn sang ngang để xem đầy đủ 3 loại màng →
+                </span>
+              </div>
+
+              <div className="overflow-x-auto -mx-6 sm:mx-0 px-6 sm:px-0">
+                <table className="w-full text-left border-collapse min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th className="py-4 px-4 w-1/4 bg-slate-50/80 rounded-l-2xl border-y border-l border-slate-200/80">
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-1">
+                          Tiêu chí kỹ thuật
+                        </span>
+                        <span className="text-sm font-extrabold text-slate-800">
+                          Đặc tính vật liệu
+                        </span>
+                      </th>
+
+                      {/* PVC Column Header */}
+                      <th className="py-4 px-4 w-1/4 bg-blue-50/70 border-y border-blue-200/80 relative">
+                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-2xs mb-1.5">
+                          Bán chạy #1
+                        </div>
+                        <h4 className="text-base font-black text-blue-950">
+                          Màng Co PVC
+                        </h4>
+                        <p className="text-[11px] text-blue-700 font-semibold mt-0.5">
+                          Độ bóng cao • Cứng cáp • Dễ co
+                        </p>
+                      </th>
+
+                      {/* POF Column Header */}
+                      <th className="py-4 px-4 w-1/4 bg-emerald-50/70 border-y border-emerald-200/80 relative">
+                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-2xs mb-1.5">
+                          Chuẩn FDA thực phẩm
+                        </div>
+                        <h4 className="text-base font-black text-emerald-950">
+                          Màng Co POF
+                        </h4>
+                        <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
+                          Bóng kính • Siêu dẻo • Đàn hồi
+                        </p>
+                      </th>
+
+                      {/* PE Column Header */}
+                      <th className="py-4 px-4 w-1/4 bg-indigo-50/70 rounded-r-2xl border-y border-r border-indigo-200/80 relative">
+                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white shadow-2xs mb-1.5">
+                          Chịu lực nặng
+                        </div>
+                        <h4 className="text-base font-black text-indigo-950">
+                          Màng Co PE (Nhiệt)
+                        </h4>
+                        <p className="text-[11px] text-indigo-700 font-semibold mt-0.5">
+                          Siêu dẻo dai • Bọc lốc đồ uống
+                        </p>
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                    {/* Row 1: Độ trong suốt */}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
+                        Độ trong suốt &amp; Thẩm mỹ
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-extrabold text-blue-900 block">Rất cao, sáng bóng kính</span>
+                        <span className="text-xs text-slate-500">Giúp bao bì nổi bật, định hình form vuông vức</span>
+                      </td>
+                      <td className="py-3.5 px-4 bg-emerald-50/20">
+                        <span className="font-extrabold text-emerald-800 block">Tuyệt đối 100%, bóng loáng</span>
+                        <span className="text-xs text-slate-500">Màng mềm mại không làm méo hộp mềm</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-extrabold text-slate-700 block">Mờ nhẹ tự nhiên</span>
+                        <span className="text-xs text-slate-500">Ưu tiên bảo vệ cơ học hơn thẩm mỹ</span>
+                      </td>
+                    </tr>
+
+                    {/* Row 2: Độ dẻo dai & Chịu lực */}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
+                        Độ dẻo dai &amp; Chịu lực
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-slate-800 block">Cứng cáp, chịu lực vừa</span>
+                        <span className="text-xs text-slate-500">Dễ giòn khi để kho lạnh âm độ</span>
+                      </td>
+                      <td className="py-3.5 px-4 bg-emerald-50/20">
+                        <span className="font-extrabold text-emerald-800 block">Cực dẻo dai, đàn hồi đa chiều</span>
+                        <span className="text-xs text-slate-500">Chịu âm độ đến -40°C không rách giòn</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-extrabold text-indigo-800 block">Siêu bền, chịu tải cực lớn</span>
+                        <span className="text-xs text-slate-500">Khó đâm thủng, chịu va đập vận chuyển xa</span>
+                      </td>
+                    </tr>
+
+                    {/* Row 3: An toàn thực phẩm */}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
+                        An toàn tiếp xúc thực phẩm
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-slate-800 block">Bọc gián tiếp</span>
+                        <span className="text-xs text-slate-500">Bọc ngoài hộp bánh, hộp trà, hũ chai</span>
+                      </td>
+                      <td className="py-3.5 px-4 bg-emerald-50/20">
+                        <span className="inline-flex items-center gap-1 font-extrabold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md text-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Chuẩn FDA Hoa Kỳ
+                        </span>
+                        <span className="text-xs text-slate-500 block mt-1">Tiếp xúc trực tiếp rau củ, bánh mì, thịt cá</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-slate-800 block">An toàn bọc lốc</span>
+                        <span className="text-xs text-slate-500">Chuyên lốc lon đồ uống, chai nước</span>
+                      </td>
+                    </tr>
+
+                    {/* Row 4: Nhiệt độ co & Tiêu hao điện */}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
+                        Nhiệt độ co rút máy
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-extrabold text-blue-900 block">110°C – 130°C (Nhiệt thấp)</span>
+                        <span className="text-xs text-slate-500">Co rất nhanh, dùng súng khò hoặc buồng nhỏ</span>
+                      </td>
+                      <td className="py-3.5 px-4 bg-emerald-50/20">
+                        <span className="font-bold text-slate-800 block">130°C – 160°C (Trung bình)</span>
+                        <span className="text-xs text-slate-500">Cần buồng co nhiệt đều hoặc máy tự động</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-slate-800 block">160°C – 200°C (Nhiệt cao)</span>
+                        <span className="text-xs text-slate-500">Đòi hỏi buồng co hầm nhiệt công suất lớn</span>
+                      </td>
+                    </tr>
+
+                    {/* Row 5: Ứng dụng phổ biến nhất */}
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
+                        Ứng dụng đóng gói tối ưu
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <p className="font-semibold text-slate-800 leading-snug">
+                          Hộp mỹ phẩm, hộp trà, nhang đèn, nắp bình 20L, giỏ quà Tết, linh kiện.
+                        </p>
+                      </td>
+                      <td className="py-3.5 px-4 bg-emerald-50/20">
+                        <p className="font-semibold text-slate-800 leading-snug">
+                          Bánh kẹo, khay thực phẩm đông lạnh, sách vở, hộp thuốc dược phẩm cao cấp.
+                        </p>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <p className="font-semibold text-slate-800 leading-snug">
+                          Lốc 6/12/24 lon bia, nước ngọt, chai tương, kiện gạch men, pallet hàng nặng.
+                        </p>
+                      </td>
+                    </tr>
+
+                    {/* Row 6: Nút hành động */}
+                    <tr className="bg-slate-50/30">
+                      <td className="py-4 px-4 font-bold text-slate-900 bg-slate-50/60">
+                        Xem chi tiết &amp; Báo giá
+                      </td>
+                      <td className="py-4 px-4">
+                        <Link
+                          href="/mang-co-pvc"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <span>Dòng Màng PVC</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                      <td className="py-4 px-4 bg-emerald-50/30">
+                        <Link
+                          href="/mang-co-pof"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <span>Dòng Màng POF</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                      <td className="py-4 px-4">
+                        <Link
+                          href="/san-pham?category=mang-co-pe"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <span>Dòng Màng PE</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 13. BANNER CTA "BẠN CHƯA TÌM ĐƯỢC BAO BÌ PHÙ HỢP?" ================= */}
+        <section className="py-14 bg-gradient-to-r from-[#0f2d59] to-[#1e3a8a] text-white">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+              <div className="max-w-2xl">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 mb-3">
+                  Tư Vấn Chuyên Sâu 24/7
+                </span>
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight mb-3">
+                  Bạn Chưa Tìm Được Bao Bì Phù Hợp Cho Sản Phẩm Của Mình?
+                </h2>
+                <p className="text-slate-200 text-sm md:text-base leading-relaxed">
+                  Mọi sự hợp tác tốt đẹp đều bắt đầu từ một cuộc trò chuyện. Hãy liên hệ với chúng tôi để đội ngũ kỹ thuật tư vấn quy cách và gửi mẫu thử nghiệm tận nơi!
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full lg:w-auto">
+                <a
+                  href={`tel:${cleanPhone}`}
+                  className="px-8 py-4 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-sm shadow-xl transition-all text-center flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span>Gọi Hotline: {settings.hotline}</span>
+                </a>
+                <a
+                  href={`https://zalo.me/${cleanZalo}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-8 py-4 rounded-full bg-white text-[#0f2d59] hover:bg-slate-100 font-extrabold text-sm shadow-xl transition-all text-center flex items-center justify-center gap-2"
+                >
+                  <span>Nhắn Zalo Tư Vấn</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 14. KIẾN THỨC VỀ BAO BÌ (BLOG POSTS) ================= */}
+        {posts && posts.length > 0 && (
+          <section className="py-16 md:py-20 bg-white">
+            <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+                <div>
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#0f2d59] border border-blue-200/70 mb-2">
+                    Kiến Thức &amp; Cẩm Nang
+                  </span>
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal">
+                    Kiến Thức Chuyên Sâu Về Bao Bì &amp; Màng Co
+                  </h2>
+                </div>
+                <Link
+                  href="/tin-tuc"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-[#0f2d59] transition-colors"
+                >
+                  <span>Xem tất cả bài viết</span>
+                  <span>→</span>
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {posts.slice(0, 6).map((post) => (
+                  <article
+                    key={`post-${post.id}`}
+                    className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-md shadow-slate-200/70 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 flex flex-col group"
+                  >
+                    <Link
+                      href={`/tin-tuc/${post.slug}`}
+                      className="relative aspect-[16/10] bg-slate-100 overflow-hidden block"
+                    >
+                      <img
+                        src={post.thumbnail_url || '/media/categories/mang-co-pvc.webp'}
+                        alt={post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+
+                      {/* Badge thương hiệu nhỏ góc trên bên trái chuẩn theo Ảnh 2 */}
+                      <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded bg-[#0f2d59]/90 backdrop-blur-xs text-[10px] font-bold text-amber-300 tracking-wider uppercase border border-amber-300/30 shadow-xs">
+                        {settings.short_name || 'Bao Bì Thành Phát'}
+                      </div>
+
+                      {/* Lớp phủ gradient xanh: Đáy xanh đậm, càng lên cao càng mờ dần đến trong suốt/trắng */}
+                      <div className="absolute inset-x-0 bottom-0 z-10 pt-28 pb-3.5 px-4 sm:px-5 bg-gradient-to-t from-[#0f2d59] via-[#0f2d59]/85 via-45% via-[#0f2d59]/20 to-transparent flex items-end">
+                        <h3 className="font-extrabold text-white text-sm sm:text-base uppercase tracking-tight line-clamp-2 min-h-[40px] sm:min-h-[48px] flex items-end drop-shadow-sm group-hover:text-sky-200 transition-colors">
+                          {post.title}
+                        </h3>
+                      </div>
+                    </Link>
+
+                    {/* Phần nội dung tóm tắt & Nút Xem chi tiết màu chủ đạo › */}
+                    <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed line-clamp-2">
+                        {post.excerpt ||
+                          'Cẩm nang hướng dẫn chi tiết quy chuẩn màng co đóng gói và giải pháp tối ưu chi phí.'}
+                      </p>
+                      <Link
+                        href={`/tin-tuc/${post.slug}`}
+                        className="text-[#0284c7] hover:text-[#2563eb] font-bold text-xs sm:text-sm inline-flex items-center gap-1 transition-colors mt-auto group/btn"
+                      >
+                        <span>Xem chi tiết</span>
+                        <span className="text-base font-black leading-none group-hover/btn:translate-x-1 transition-transform">›</span>
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ================= 15. NHỮNG ĐIỀU CẦN BIẾT TRƯỚC KHI HỢP TÁC (FAQ ACCORDION) ================= */}
+        <section className="py-16 md:py-20 bg-slate-50/70 border-t border-slate-100">
+          <div className="max-w-[960px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 mb-2">
+                Hỏi &amp; Đáp
+              </span>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0f2d59] tracking-normal mb-3">
+                Những Điều Cần Biết Trước Khi Hợp Tác Cùng{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] to-[#2563eb]">
+                  {settings.short_name || 'Bao Bì Thành Phát'}
+                </span>
+              </h2>
+              <p className="text-slate-600 text-base">
+                Giải đáp nhanh chóng các thắc mắc phổ biến nhất về đặt hàng, giá cả và bảo hành sản phẩm.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {faqs.map((faq, fIdx) => (
+                <details
+                  key={`faq-${fIdx}`}
+                  className="group bg-white rounded-2xl border border-slate-200/80 p-5 md:p-6 transition-all duration-300 shadow-sm shadow-slate-200/80 hover:shadow-md open:shadow-lg open:border-blue-400"
+                >
+                  <summary className="font-bold text-slate-900 text-base md:text-lg cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+                    <span className="group-hover:text-[#0f2d59] transition-colors">{faq.q}</span>
+                    <span className="w-8 h-8 rounded-full bg-slate-100 group-open:bg-[#0f2d59] group-open:text-white flex items-center justify-center shrink-0 transition-all text-slate-600 font-bold text-lg">
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-4 pt-4 border-t border-slate-100 text-slate-600 text-sm md:text-base leading-relaxed">
+                    {faq.a}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 16. FORM YÊU CẦU BÁO GIÁ (#bao-gia) ================= */}
+        <QuoteSection settings={settings} />
+
+        {/* ================= 17. ĐỊA CHỈ & BẢN ĐỒ (#ban-do) ================= */}
+        <section
+          className="py-16 md:py-20 bg-white border-t border-slate-100"
+          id="ban-do"
+          aria-labelledby="mcvt-map-h"
+        >
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-5 bg-white p-8 rounded-3xl border border-slate-200/80 shadow-lg shadow-slate-200/70">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#0f2d59] border border-blue-200/60 mb-3">
+                  Địa Chỉ Showroom &amp; Kho Hàng
+                </span>
+                <h2 id="mcvt-map-h" className="text-2xl md:text-3xl font-black text-[#0f2d59] tracking-normal mb-4">
+                  Ghé Thăm Xưởng Sản Xuất{' '}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] to-[#2563eb]">
+                    {settings.short_name || 'Bao Bì Thành Phát'}
+                  </span>
+                </h2>
+                <address className="not-italic text-slate-700 text-base leading-relaxed mb-6">
+                  {settings.address}
+                </address>
+                <div className="space-y-2 mb-8 text-sm text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">Hotline:</span>
+                    <a href={`tel:${cleanPhone}`} className="text-blue-700 font-bold hover:underline">
+                      {settings.hotline}
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">Email:</span>
+                    <a href={`mailto:${settings.email}`} className="text-slate-700 hover:underline">
+                      {settings.email}
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">Thời gian làm việc:</span>
+                    <span>Thứ 2 - Thứ 7: 8h00 - 17h30</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#0f2d59] hover:bg-blue-900 text-white font-bold text-sm shadow-md transition-all"
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span>Chỉ đường trên Google Maps</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  <a
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white hover:bg-slate-100 text-[#0f2d59] border border-slate-300 font-bold text-sm shadow-sm transition-all"
+                    href={`tel:${cleanPhone}`}
+                  >
+                    <span>Gọi {settings.hotline}</span>
+                  </a>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7 h-[420px] rounded-3xl overflow-hidden border border-slate-200 shadow-md">
+                <iframe
+                  title={`Bản đồ ${settings.company_name} – ${settings.address}`}
+                  src={`https://www.google.com/maps?q=${encodedAddress}&t=m&z=16&hl=vi&output=embed`}
+                  width="100%"
+                  height="100%"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
             </div>
           </div>
         </section>

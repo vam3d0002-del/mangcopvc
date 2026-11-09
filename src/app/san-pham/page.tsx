@@ -1,9 +1,10 @@
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getCachedCategories, getCachedProductsList } from '@/lib/cache';
+import { getCachedCategories, getCachedIndustries, getCachedProductsList } from '@/lib/cache';
 import ProductCatalogClient from '@/components/ProductCatalogClient';
 
-export const revalidate = 2592000;
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: 'Danh Mục Màng Co Nhiệt PVC, POF, PE & Túi Màng Co Cắt Sẵn Giá Sỉ',
@@ -15,8 +16,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ProductsPage() {
-  const [categories, products] = await Promise.all([
+  const [categories, industries, products] = await Promise.all([
     getCachedCategories(),
+    getCachedIndustries(),
     getCachedProductsList(),
   ]);
 
@@ -31,14 +33,16 @@ export default async function ProductsPage() {
           <span className="text-slate-800 font-bold">Sản phẩm Màng Co</span>
         </nav>
         <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
-          Sản Phẩm Màng Co Nhiệt PVC, POF, PE
+          Sản Phẩm Màng Co &amp; Bao Bì Đóng Gói
         </h1>
         <p className="text-slate-600 text-sm md:text-base mt-2 max-w-3xl">
           Toàn bộ sản phẩm được sản xuất từ hạt nhựa nguyên sinh, kiểm soát chặt chẽ độ dày (mic) và tỷ lệ co nhiệt trước khi xuất xưởng. Nhận cắt túi, đục lỗ thoát khí và chia cuộn theo quy cách yêu cầu.
         </p>
       </div>
 
-      <ProductCatalogClient categories={categories} products={products} />
+      <Suspense fallback={<div className="py-20 text-center text-slate-400">Đang tải danh mục sản phẩm...</div>}>
+        <ProductCatalogClient categories={categories} industries={industries} products={products} />
+      </Suspense>
     </div>
   );
 }

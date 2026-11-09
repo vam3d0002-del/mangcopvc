@@ -111,6 +111,17 @@ function formatInlineMarkdown(text: string): string {
   return out;
 }
 
+function sanitizeHtml(html: string): string {
+  if (!html) return '';
+  return html
+    // Loại bỏ thẻ <script>...</script>
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    // Loại bỏ các inline event handlers như onclick, onload, onerror
+    .replace(/\son\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+    // Vô hiệu hóa link javascript:...
+    .replace(/href\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'href="#"');
+}
+
 export function renderMarkdownOrHtml(input: string): string {
   if (!input) return '';
   const trimmed = input.trim();
@@ -120,7 +131,7 @@ export function renderMarkdownOrHtml(input: string): string {
     /^<(p|h[1-6]|div|section|article|ul|ol|table)\b/i.test(trimmed) &&
     !/^(#{1,6}\s|-\s|\*\s|\d+\.\s|>\s)/m.test(trimmed)
   ) {
-    return trimmed;
+    return sanitizeHtml(trimmed);
   }
 
   const lines = trimmed.replace(/\r\n/g, '\n').split('\n');
@@ -288,7 +299,7 @@ export function renderMarkdownOrHtml(input: string): string {
   flushParagraph();
   closeLists();
 
-  return htmlBlocks.join('\n');
+  return sanitizeHtml(htmlBlocks.join('\n'));
 }
 
 export function stripMarkdownToPlainText(input: string): string {

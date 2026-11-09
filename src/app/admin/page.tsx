@@ -3,7 +3,9 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   dbGetCategories,
+  dbGetIndustries,
   dbGetInquiries,
+  dbGetLinks,
   dbGetPosts,
   dbGetProducts,
   dbGetSiteSettings,
@@ -32,13 +34,15 @@ export default async function AdminPage() {
 
   const supabaseConfigured = isSupabaseConfigured();
 
-  const [siteSettings, categories, products, posts, inquiries] =
+  const [siteSettings, categories, industries, products, posts, inquiries, links] =
     await Promise.all([
       dbGetSiteSettings(),
       dbGetCategories(),
+      dbGetIndustries(),
       dbGetProducts(),
       dbGetPosts(),
       dbGetInquiries(),
+      dbGetLinks(),
     ]);
 
   return (
@@ -47,9 +51,11 @@ export default async function AdminPage() {
       supabaseConfigured={supabaseConfigured}
       siteSettings={siteSettings}
       categories={categories}
+      industries={industries}
       products={products}
       posts={posts}
       inquiries={inquiries}
+      links={links}
     />
   );
 }

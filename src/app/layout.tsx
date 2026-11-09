@@ -2,7 +2,14 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { getCachedSiteSettings } from '@/lib/cache';
+import {
+  getCachedCategories,
+  getCachedIndustries,
+  getCachedProductsList,
+  getCachedSiteSettings,
+} from '@/lib/cache';
+
+
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getCachedSiteSettings();
@@ -48,12 +55,22 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getCachedSiteSettings();
+  const [settings, categories, industries, products] = await Promise.all([
+    getCachedSiteSettings(),
+    getCachedCategories(),
+    getCachedIndustries(),
+    getCachedProductsList(),
+  ]);
 
   return (
     <html lang="vi" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col" suppressHydrationWarning>
-        <Header settings={settings} />
+        <Header
+          settings={settings}
+          categories={categories}
+          industries={industries}
+          products={products}
+        />
         <main className="flex-1">{children}</main>
         <Footer settings={settings} />
       </body>
