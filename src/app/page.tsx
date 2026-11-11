@@ -11,8 +11,6 @@ import {
   ArrowRight,
   ChevronRight,
   Phone,
-  Calculator,
-  Sparkles,
 } from 'lucide-react';
 import {
   getCachedCategories,
@@ -21,7 +19,6 @@ import {
   getCachedProductsList,
   getCachedSiteSettings,
 } from '@/lib/cache';
-import ShrinkFilmCalculator from '@/components/ShrinkFilmCalculator';
 import QuoteSection from '@/components/QuoteSection';
 import SolarHeroBanner from '@/components/SolarHeroBanner';
 
@@ -835,10 +832,10 @@ export default async function HomePage() {
                   <span>GỌI HOTLINE: {settings.hotline}</span>
                 </a>
                 <a
-                  href="#uoc-tinh"
+                  href="#bao-gia"
                   className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-bold border border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  <span>Công Cụ Tính Khổ Màng</span>
+                  <span>Nhận Báo Giá &amp; Test Mẫu</span>
                   <ArrowRight className="w-4 h-4" />
                 </a>
               </div>
@@ -869,254 +866,6 @@ export default async function HomePage() {
                   allowFullScreen
                   loading="lazy"
                 ></iframe>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 12. BẢNG SO SÁNH & CÔNG CỤ TÍNH KHỔ MÀNG (#uoc-tinh) ================= */}
-        <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50/80 via-white to-slate-50/60 border-t border-slate-100" id="uoc-tinh">
-          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto mb-12">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs mb-3">
-                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <Calculator className="w-3.5 h-3.5 text-blue-600" />
-                <span>Công Cụ Hỗ Trợ Đóng Gói</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#072554] tracking-tight mb-3">
-                Ước Tính Khổ Màng &amp; So Sánh Vật Liệu
-              </h2>
-              <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-                Giúp khách hàng nhanh chóng tính đúng khổ màng (Lay-flat) và đối chiếu đặc tính 3 loại vật liệu phù hợp nhất cho sản phẩm.
-              </p>
-            </div>
-
-            {/* Bộ công cụ tính toán thông minh */}
-            <div className="mb-14">
-              <ShrinkFilmCalculator
-                hotline={settings.hotline}
-                companyName={settings.short_name || settings.company_name}
-              />
-            </div>
-
-            {/* Bảng so sánh 3 dòng màng cao cấp */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-[0_10px_35px_-8px_rgba(0,0,0,0.06)] relative overflow-hidden">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-5 border-b border-slate-100">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 mb-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Bảng So Sánh Kỹ Thuật</span>
-                  </div>
-                  <h3 className="font-black text-[#072554] text-xl sm:text-2xl tracking-tight">
-                    So Sánh Đặc Tính 3 Loại Màng Co Phổ Biến
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    Đối chiếu chi tiết giữa Màng PVC, Màng POF và Màng PE để lựa chọn đúng vật liệu tối ưu ngân sách.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 self-start md:self-auto text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Tiêu chuẩn nhà máy sản xuất</span>
-                </div>
-              </div>
-
-              {/* Mobile swipe hint */}
-              <div className="lg:hidden text-center mb-3">
-                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                  ← Cuộn sang ngang để xem đầy đủ 3 loại màng →
-                </span>
-              </div>
-
-              <div className="overflow-x-auto -mx-6 sm:mx-0 px-6 sm:px-0">
-                <table className="w-full text-left border-collapse min-w-[720px]">
-                  <thead>
-                    <tr>
-                      <th className="py-4 px-4 w-1/4 bg-slate-50/80 rounded-l-2xl border-y border-l border-slate-200/80">
-                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-1">
-                          Tiêu chí kỹ thuật
-                        </span>
-                        <span className="text-sm font-extrabold text-slate-800">
-                          Đặc tính vật liệu
-                        </span>
-                      </th>
-
-                      {/* PVC Column Header */}
-                      <th className="py-4 px-4 w-1/4 bg-blue-50/70 border-y border-blue-200/80 relative">
-                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-2xs mb-1.5">
-                          Bán chạy #1
-                        </div>
-                        <h4 className="text-base font-black text-blue-950">
-                          Màng Co PVC
-                        </h4>
-                        <p className="text-[11px] text-blue-700 font-semibold mt-0.5">
-                          Độ bóng cao • Cứng cáp • Dễ co
-                        </p>
-                      </th>
-
-                      {/* POF Column Header */}
-                      <th className="py-4 px-4 w-1/4 bg-emerald-50/70 border-y border-emerald-200/80 relative">
-                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-2xs mb-1.5">
-                          Chuẩn FDA thực phẩm
-                        </div>
-                        <h4 className="text-base font-black text-emerald-950">
-                          Màng Co POF
-                        </h4>
-                        <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-                          Bóng kính • Siêu dẻo • Đàn hồi
-                        </p>
-                      </th>
-
-                      {/* PE Column Header */}
-                      <th className="py-4 px-4 w-1/4 bg-indigo-50/70 rounded-r-2xl border-y border-r border-indigo-200/80 relative">
-                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white shadow-2xs mb-1.5">
-                          Chịu lực nặng
-                        </div>
-                        <h4 className="text-base font-black text-indigo-950">
-                          Màng Co PE (Nhiệt)
-                        </h4>
-                        <p className="text-[11px] text-indigo-700 font-semibold mt-0.5">
-                          Siêu dẻo dai • Bọc lốc đồ uống
-                        </p>
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                    {/* Row 1: Độ trong suốt */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
-                        Độ trong suốt &amp; Thẩm mỹ
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-extrabold text-blue-900 block">Rất cao, sáng bóng kính</span>
-                        <span className="text-xs text-slate-500">Giúp bao bì nổi bật, định hình form vuông vức</span>
-                      </td>
-                      <td className="py-3.5 px-4 bg-emerald-50/20">
-                        <span className="font-extrabold text-emerald-800 block">Tuyệt đối 100%, bóng loáng</span>
-                        <span className="text-xs text-slate-500">Màng mềm mại không làm méo hộp mềm</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-extrabold text-slate-700 block">Mờ nhẹ tự nhiên</span>
-                        <span className="text-xs text-slate-500">Ưu tiên bảo vệ cơ học hơn thẩm mỹ</span>
-                      </td>
-                    </tr>
-
-                    {/* Row 2: Độ dẻo dai & Chịu lực */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
-                        Độ dẻo dai &amp; Chịu lực
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-800 block">Cứng cáp, chịu lực vừa</span>
-                        <span className="text-xs text-slate-500">Dễ giòn khi để kho lạnh âm độ</span>
-                      </td>
-                      <td className="py-3.5 px-4 bg-emerald-50/20">
-                        <span className="font-extrabold text-emerald-800 block">Cực dẻo dai, đàn hồi đa chiều</span>
-                        <span className="text-xs text-slate-500">Chịu âm độ đến -40°C không rách giòn</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-extrabold text-indigo-800 block">Siêu bền, chịu tải cực lớn</span>
-                        <span className="text-xs text-slate-500">Khó đâm thủng, chịu va đập vận chuyển xa</span>
-                      </td>
-                    </tr>
-
-                    {/* Row 3: An toàn thực phẩm */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
-                        An toàn tiếp xúc thực phẩm
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-800 block">Bọc gián tiếp</span>
-                        <span className="text-xs text-slate-500">Bọc ngoài hộp bánh, hộp trà, hũ chai</span>
-                      </td>
-                      <td className="py-3.5 px-4 bg-emerald-50/20">
-                        <span className="inline-flex items-center gap-1 font-extrabold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md text-xs">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Chuẩn FDA Hoa Kỳ
-                        </span>
-                        <span className="text-xs text-slate-500 block mt-1">Tiếp xúc trực tiếp rau củ, bánh mì, thịt cá</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-800 block">An toàn bọc lốc</span>
-                        <span className="text-xs text-slate-500">Chuyên lốc lon đồ uống, chai nước</span>
-                      </td>
-                    </tr>
-
-                    {/* Row 4: Nhiệt độ co & Tiêu hao điện */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
-                        Nhiệt độ co rút máy
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-extrabold text-blue-900 block">110°C – 130°C (Nhiệt thấp)</span>
-                        <span className="text-xs text-slate-500">Co rất nhanh, dùng súng khò hoặc buồng nhỏ</span>
-                      </td>
-                      <td className="py-3.5 px-4 bg-emerald-50/20">
-                        <span className="font-bold text-slate-800 block">130°C – 160°C (Trung bình)</span>
-                        <span className="text-xs text-slate-500">Cần buồng co nhiệt đều hoặc máy tự động</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-800 block">160°C – 200°C (Nhiệt cao)</span>
-                        <span className="text-xs text-slate-500">Đòi hỏi buồng co hầm nhiệt công suất lớn</span>
-                      </td>
-                    </tr>
-
-                    {/* Row 5: Ứng dụng phổ biến nhất */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 bg-slate-50/40">
-                        Ứng dụng đóng gói tối ưu
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <p className="font-semibold text-slate-800 leading-snug">
-                          Hộp mỹ phẩm, hộp trà, nhang đèn, nắp bình 20L, giỏ quà Tết, linh kiện.
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-4 bg-emerald-50/20">
-                        <p className="font-semibold text-slate-800 leading-snug">
-                          Bánh kẹo, khay thực phẩm đông lạnh, sách vở, hộp thuốc dược phẩm cao cấp.
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <p className="font-semibold text-slate-800 leading-snug">
-                          Lốc 6/12/24 lon bia, nước ngọt, chai tương, kiện gạch men, pallet hàng nặng.
-                        </p>
-                      </td>
-                    </tr>
-
-                    {/* Row 6: Nút hành động */}
-                    <tr className="bg-slate-50/30">
-                      <td className="py-4 px-4 font-bold text-slate-900 bg-slate-50/60">
-                        Xem chi tiết &amp; Báo giá
-                      </td>
-                      <td className="py-4 px-4">
-                        <Link
-                          href="/mang-co-pvc"
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all"
-                        >
-                          <span>Dòng Màng PVC</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </td>
-                      <td className="py-4 px-4 bg-emerald-50/30">
-                        <Link
-                          href="/mang-co-pof"
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all"
-                        >
-                          <span>Dòng Màng POF</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Link
-                          href="/san-pham?category=mang-co-pe"
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all"
-                        >
-                          <span>Dòng Màng PE</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
             </div>
           </div>
@@ -1276,78 +1025,23 @@ export default async function HomePage() {
         {/* ================= 16. FORM YÊU CẦU BÁO GIÁ (#bao-gia) ================= */}
         <QuoteSection settings={settings} />
 
-        {/* ================= 17. ĐỊA CHỈ & BẢN ĐỒ (#ban-do) ================= */}
+        {/* ================= 17. BẢN ĐỒ (#ban-do) ================= */}
         <section
-          className="py-16 md:py-20 bg-white border-t border-slate-100"
+          className="py-12 md:py-16 bg-white border-t border-slate-100"
           id="ban-do"
-          aria-labelledby="mcvt-map-h"
+          aria-label={`Bản đồ ${settings.company_name} – ${settings.address}`}
         >
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-5 bg-white p-8 rounded-3xl border border-slate-200/80 shadow-lg shadow-slate-200/70">
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#0f2d59] border border-blue-200/60 mb-3">
-                  Địa Chỉ Showroom &amp; Kho Hàng
-                </span>
-                <h2 id="mcvt-map-h" className="text-2xl md:text-3xl font-black text-[#0f2d59] tracking-normal mb-4">
-                  Ghé Thăm Xưởng Sản Xuất{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] to-[#2563eb]">
-                    {settings.short_name || 'Bao Bì Thành Phát'}
-                  </span>
-                </h2>
-                <address className="not-italic text-slate-700 text-base leading-relaxed mb-6">
-                  {settings.address}
-                </address>
-                <div className="space-y-2 mb-8 text-sm text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">Hotline:</span>
-                    <a href={`tel:${cleanPhone}`} className="text-blue-700 font-bold hover:underline">
-                      {settings.hotline}
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">Email:</span>
-                    <a href={`mailto:${settings.email}`} className="text-slate-700 hover:underline">
-                      {settings.email}
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">Thời gian làm việc:</span>
-                    <span>Thứ 2 - Thứ 7: 8h00 - 17h30</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <a
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#0f2d59] hover:bg-blue-900 text-white font-bold text-sm shadow-md transition-all"
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span>Chỉ đường trên Google Maps</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                  <a
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white hover:bg-slate-100 text-[#0f2d59] border border-slate-300 font-bold text-sm shadow-sm transition-all"
-                    href={`tel:${cleanPhone}`}
-                  >
-                    <span>Gọi {settings.hotline}</span>
-                  </a>
-                </div>
-              </div>
-
-              <div className="lg:col-span-7 h-[420px] rounded-3xl overflow-hidden border border-slate-200 shadow-md">
-                <iframe
-                  title={`Bản đồ ${settings.company_name} – ${settings.address}`}
-                  src={`https://www.google.com/maps?q=${encodedAddress}&t=m&z=16&hl=vi&output=embed`}
-                  width="100%"
-                  height="100%"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  allowFullScreen
-                />
-              </div>
+            <div className="w-full h-[380px] sm:h-[420px] rounded-3xl overflow-hidden border border-slate-200 shadow-md">
+              <iframe
+                title={`Bản đồ ${settings.company_name} – ${settings.address}`}
+                src={`https://www.google.com/maps?q=${encodedAddress}&t=m&z=16&hl=vi&output=embed`}
+                width="100%"
+                height="100%"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
             </div>
           </div>
         </section>

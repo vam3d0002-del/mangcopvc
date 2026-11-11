@@ -164,7 +164,6 @@ export default function Footer({ settings }: { settings: SiteSettings }) {
               <ul className="space-y-2.5 text-xs sm:text-sm">
                 {[
                   { title: 'Yêu cầu bảng báo giá sỉ', href: '#bao-gia' },
-                  { title: 'Ước tính khổ màng tự động', href: '/#uoc-tinh' },
                   { title: 'Giới thiệu về công ty', href: '/gioi-thieu' },
                   { title: 'Tin tức & Cẩm nang đóng gói', href: '/tin-tuc' },
                   { title: 'Quy trình sản xuất nhà xưởng', href: '/gioi-thieu' },

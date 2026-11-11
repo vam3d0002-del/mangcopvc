@@ -124,12 +124,12 @@ export default async function KienThucMangCoNhietPage() {
           >
             Màng Co POF ({pofPosts.length})
           </a>
-          <Link
-            href="/#uoc-tinh"
+          <a
+            href="#bao-gia"
             className="ml-auto px-3.5 py-1.5 rounded-full bg-blue-50 text-[#0284c7] border border-blue-200/60 hover:bg-blue-600 hover:text-white transition shrink-0 flex items-center gap-1.5"
           >
-            <span>📐 Công cụ tính khổ màng</span>
-          </Link>
+            <span>📩 Nhận tư vấn &amp; báo giá</span>
+          </a>
         </div>
       </div>
 

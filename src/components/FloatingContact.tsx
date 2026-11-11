@@ -1,5 +1,63 @@
 import { SiteSettings } from '@/types/database';
 
+function ZaloLogoSvg({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      suppressHydrationWarning
+      viewBox="0 0 48 48"
+      width={size}
+      height={size}
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      {/* Bong bóng chat Zalo màu trắng chuẩn nhận diện */}
+      <path
+        fill="#ffffff"
+        d="M24 4C12.95 4 4 12.16 4 22.22c0 5.42 2.61 10.29 6.76 13.63-.42 2.27-1.45 4.86-2.99 6.53-.44.48-.09 1.25.56 1.22 3.51-.15 7.42-1.49 9.89-2.6 1.85.5 3.79.77 5.78.77 11.05 0 20-8.16 20-18.22C44 12.16 35.05 4 24 4z"
+      />
+      {/* Chữ Zalo vector sắc nét màu xanh Zalo #0068ff */}
+      <g transform="translate(0.45, 0)">
+        <path
+          d="M10 18.2H16.5L10 26.8H16.7"
+          stroke="#0068ff"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+        <circle
+          cx="22.7"
+          cy="24.65"
+          r="2.2"
+          stroke="#0068ff"
+          strokeWidth="2.1"
+          fill="none"
+        />
+        <path
+          d="M24.9 22.2V26.8"
+          stroke="#0068ff"
+          strokeWidth="2.1"
+          strokeLinecap="round"
+        />
+        <path
+          d="M28.8 18.1V26.8"
+          stroke="#0068ff"
+          strokeWidth="2.3"
+          strokeLinecap="round"
+        />
+        <circle
+          cx="34.9"
+          cy="24.45"
+          r="2.35"
+          stroke="#0068ff"
+          strokeWidth="2.2"
+          fill="none"
+        />
+      </g>
+    </svg>
+  );
+}
+
 export default function FloatingContact({
   settings,
 }: {
@@ -66,12 +124,7 @@ export default function FloatingContact({
             title={`Chat Zalo với ${settings.company_name} (${cleanZalo})`}
           >
             <div className="ux-icon-wrap ux-anim-zalo">
-              <span
-                suppressHydrationWarning
-                className="bg-white text-[#0068ff] font-black text-[12px] px-2 py-1 rounded-full leading-none tracking-tight shadow-sm inline-block"
-              >
-                Zalo
-              </span>
+              <ZaloLogoSvg size={34} />
             </div>
           </a>
         </div>
@@ -117,7 +170,18 @@ export default function FloatingContact({
           className="s-call"
           href={`tel:${cleanPhone}`}
         >
-          📞 Gọi {settings.hotline}
+          <svg
+            suppressHydrationWarning
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="currentColor"
+            className="shrink-0"
+            aria-hidden="true"
+          >
+            <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z" />
+          </svg>
+          <span>Gọi {settings.hotline}</span>
         </a>
         <a
           suppressHydrationWarning
@@ -126,10 +190,29 @@ export default function FloatingContact({
           target="_blank"
           rel="noopener noreferrer"
         >
-          💬 Zalo
+          <ZaloLogoSvg size={20} />
+          <span>Zalo</span>
         </a>
         <a suppressHydrationWarning className="s-quote" href="#bao-gia">
-          📋 Báo giá
+          <svg
+            suppressHydrationWarning
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0"
+            aria-hidden="true"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          <span>Báo giá</span>
         </a>
       </div>
     </>

@@ -928,11 +928,11 @@ export default async function MangCoPvcPage() {
                 <span className="ml-4 shrink-0 text-slate-400 group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed pt-3 border-t border-slate-200/70">
-                Công thức nhanh: <strong>Khổ rộng túi = Rộng + Cao + 1cm đến 1.5cm</strong>; <strong>Chiều dài túi = Dài + Cao + 2cm đến 3cm</strong>. Bạn cũng có thể dùng công cụ{' '}
-                <Link href="/#uoc-tinh" className="text-blue-600 font-bold underline hover:text-blue-700">
-                  Ước tính nhanh khổ màng co
-                </Link>{' '}
-                ngay trên trang chủ.
+                Công thức nhanh: <strong>Khổ rộng túi = Rộng + Cao + 1cm đến 1.5cm</strong>; <strong>Chiều dài túi = Dài + Cao + 2cm đến 3cm</strong>. Hoặc gửi kích thước hộp qua{' '}
+                <a href="#bao-gia" className="text-blue-600 font-bold underline hover:text-blue-700">
+                  Form yêu cầu báo giá
+                </a>{' '}
+                bên dưới để kỹ thuật viên tính chính xác và gửi mẫu test miễn phí.
               </div>
             </details>
 
