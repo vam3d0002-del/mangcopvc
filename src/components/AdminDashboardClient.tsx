@@ -1551,8 +1551,14 @@ export default function AdminDashboardClient({
         {/* Bottom User Profile & Connection Card */}
         <div className="p-3.5 border-t border-sky-400/20 bg-[#041733]/80 space-y-3">
           <div className="bg-white/10 rounded-xl border border-white/15 p-2.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs border border-sky-300/30">
-              TP
+            <div className="w-9 h-9 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs border border-white/40 overflow-hidden">
+              <img
+                src="/icon_logo.webp"
+                alt={siteSettings.short_name || siteSettings.company_name}
+                width={32}
+                height={35}
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-extrabold text-white truncate">

@@ -22,6 +22,11 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | ${settings.short_name}`,
     },
     description: settings.seo_description,
+    icons: {
+      icon: [{ url: '/icon_logo.webp', type: 'image/webp' }],
+      shortcut: [{ url: '/icon_logo.webp', type: 'image/webp' }],
+      apple: [{ url: '/icon_logo.webp', type: 'image/webp' }],
+    },
     keywords: [
       'màng co pvc',
       'màng co nhiệt pvc',
