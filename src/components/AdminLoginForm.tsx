@@ -144,17 +144,6 @@ export default function AdminLoginForm() {
           </button>
         </form>
 
-        {/* Default Account Hint Box */}
-        <div className="mt-5 p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-[11px] text-slate-600 space-y-0.5">
-          <div className="font-bold text-slate-700">Tài khoản quản trị:</div>
-          <div>
-            Tên đăng nhập: <code className="font-bold text-[#2563eb]">danangdangsong</code> <span className="text-slate-400">(hoặc admin)</span>
-          </div>
-          <div>
-            Mật khẩu: <code className="font-bold text-[#2563eb]">admin123</code>
-          </div>
-        </div>
-
         <div className="mt-6 pt-4 border-t border-slate-100 text-center">
           <Link
             href="/"
