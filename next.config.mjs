@@ -43,7 +43,7 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: '/gioi-thieu/:path*',
+        source: '/gioi-thieu/:path+',
         destination: '/gioi-thieu',
         permanent: true,
       },
