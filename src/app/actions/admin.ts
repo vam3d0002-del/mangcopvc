@@ -52,38 +52,49 @@ async function ensureAdmin(): Promise<boolean> {
 }
 
 export async function loginAdminAction(formData: FormData) {
-  const email = ((formData.get('email') as string) || '').trim().toLowerCase();
+  const username = (
+    (formData.get('username') as string) ||
+    (formData.get('email') as string) ||
+    ''
+  ).trim();
   const password = ((formData.get('password') as string) || '').trim();
 
-  if (!email || !password) {
+  if (!username || !password) {
     return {
       ok: false,
-      message: 'Vui lòng nhập đầy đủ Email và Mật khẩu quản trị!',
+      message: 'Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu quản trị!',
     };
   }
 
-  const expectedEmail = (
-    process.env.ADMIN_EMAIL || 'admin@mangcopvc.com'
+  const expectedUsername = (
+    process.env.ADMIN_USERNAME ||
+    process.env.ADMIN_EMAIL ||
+    'admin'
   )
     .trim()
     .toLowerCase();
   const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-  const validEmails = new Set([
-    expectedEmail,
+  const validUsernames = new Set([
+    expectedUsername,
+    'danangdangsong',
+    'admin',
+    'thanhphat',
     'admin@mangcopvc.com',
     'caovanthinh2012@gmail.com',
   ]);
 
-  let isValid = validEmails.has(email) && password === expectedPassword;
+  let isValid =
+    validUsernames.has(username.toLowerCase()) &&
+    password === expectedPassword;
 
-  // Hỗ trợ thêm đăng nhập qua tài khoản Supabase Auth nếu có
-  if (!isValid && isSupabaseConfigured()) {
+  // Hỗ trợ thêm đăng nhập qua tài khoản Supabase Auth nếu username là email
+  if (!isValid && isSupabaseConfigured() && username.includes('@')) {
     try {
       const supabase = getSupabaseAdminClient();
       if (supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: username.toLowerCase(),
           password,
         });
         if (!error && data?.user) {
@@ -98,7 +109,7 @@ export async function loginAdminAction(formData: FormData) {
   if (!isValid) {
     return {
       ok: false,
-      message: 'Email hoặc mật khẩu quản trị không chính xác!',
+      message: 'Tên đăng nhập hoặc mật khẩu quản trị không chính xác!',
     };
   }
 
@@ -111,7 +122,7 @@ export async function loginAdminAction(formData: FormData) {
     path: '/',
     maxAge: 60 * 60 * 24 * 7, // 7 ngày
   });
-  cookieStore.set('admin_email', email, {
+  cookieStore.set('admin_email', username, {
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax',

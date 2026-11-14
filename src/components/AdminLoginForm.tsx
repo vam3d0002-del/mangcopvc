@@ -3,7 +3,7 @@
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ShieldCheck } from 'lucide-react';
 import { loginAdminAction } from '@/app/actions/admin';
 
 export default function AdminLoginForm() {
@@ -54,7 +54,7 @@ export default function AdminLoginForm() {
             Đăng nhập Quản Trị Viên
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Nhập Email và Mật khẩu quản trị để truy cập bảng điều khiển
+            Nhập Tên đăng nhập và Mật khẩu quản trị để truy cập bảng điều khiển
           </p>
         </div>
 
@@ -79,21 +79,21 @@ export default function AdminLoginForm() {
         >
           <div>
             <label
-              htmlFor="admin-email"
+              htmlFor="admin-username"
               className="block text-xs font-bold text-slate-700 mb-1.5"
             >
-              Email quản trị <span className="text-rose-500">*</span>
+              Tên đăng nhập <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 suppressHydrationWarning
-                id="admin-email"
-                type="email"
-                name="email"
+                id="admin-username"
+                type="text"
+                name="username"
                 required
-                autoComplete="email"
-                placeholder="admin@mangcopvc.com"
+                autoComplete="username"
+                placeholder="Nhập tên đăng nhập"
                 className="w-full rounded-xl border border-slate-300 bg-slate-50/50 pl-10 pr-4 py-3 text-sm text-slate-900 focus:bg-white focus:border-[#2563eb] focus:ring-3 focus:ring-blue-500/15 focus:outline-none transition"
               />
             </div>
@@ -146,9 +146,9 @@ export default function AdminLoginForm() {
 
         {/* Default Account Hint Box */}
         <div className="mt-5 p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-[11px] text-slate-600 space-y-0.5">
-          <div className="font-bold text-slate-700">Tài khoản mặc định:</div>
+          <div className="font-bold text-slate-700">Tài khoản quản trị:</div>
           <div>
-            Email: <code className="font-bold text-[#2563eb]">admin@mangcopvc.com</code>
+            Tên đăng nhập: <code className="font-bold text-[#2563eb]">danangdangsong</code> <span className="text-slate-400">(hoặc admin)</span>
           </div>
           <div>
             Mật khẩu: <code className="font-bold text-[#2563eb]">admin123</code>
