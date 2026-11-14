@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Nunito, Roboto } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -8,6 +9,20 @@ import {
   getCachedProductsList,
   getCachedSiteSettings,
 } from '@/lib/cache';
+
+const nunito = Nunito({
+  subsets: ['vietnamese', 'latin'],
+  style: ['normal', 'italic'],
+  variable: '--font-nunito',
+  display: 'swap',
+});
+
+const roboto = Roboto({
+  subsets: ['vietnamese', 'latin'],
+  style: ['normal', 'italic'],
+  variable: '--font-roboto',
+  display: 'swap',
+});
 
 
 
@@ -68,7 +83,11 @@ export default async function RootLayout({
   ]);
 
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html
+      lang="vi"
+      className={`${nunito.variable} ${roboto.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         <Header
           settings={settings}

@@ -22,8 +22,8 @@ export const FALLBACK_SITE_SETTINGS: SiteSettings = {
   id: 1,
   company_name: '',
   short_name: '',
-  hotline: '',
-  zalo: '',
+  hotline: '0935 909 747',
+  zalo: '0935909747',
   email: '',
   address: '',
   seo_title: '',
@@ -140,6 +140,9 @@ export async function dbGetSiteSettings(): Promise<SiteSettings> {
 
     if (!error && data) {
       dbRecord = data as SiteSettings;
+      if (dbRecord.hotline && dbRecord.hotline.includes('0236')) {
+        dbRecord.hotline = '0935 909 747';
+      }
       // Nếu bản ghi DB đã đầy đủ và có hero_slides thì trả về ngay, không cần đọc storage file
       if (dbRecord.hero_slides && dbRecord.hero_slides.length > 0) {
         return dbRecord;
@@ -151,6 +154,16 @@ export async function dbGetSiteSettings(): Promise<SiteSettings> {
   const cloudSettings = store.site_settings || FALLBACK_SITE_SETTINGS;
 
   const baseSettings = dbRecord ? { ...cloudSettings, ...dbRecord } : cloudSettings;
+
+  if (baseSettings.hotline && baseSettings.hotline.includes('0236')) {
+    baseSettings.hotline = '0935 909 747';
+  }
+  if (!baseSettings.hotline) {
+    baseSettings.hotline = '0935 909 747';
+  }
+  if (!baseSettings.zalo) {
+    baseSettings.zalo = '0935909747';
+  }
 
   // Luôn lấy hero_slides từ Cloud Store nếu Postgres chưa lưu hoặc trống
   if (!baseSettings.hero_slides || baseSettings.hero_slides.length === 0) {
@@ -970,7 +983,8 @@ export async function dbGetPosts(): Promise<PostDetail[]> {
 
 export async function dbGetPostBySlug(slug: string): Promise<PostDetail | null> {
   const posts = await dbGetPosts();
-  return posts.find((p) => p.slug === slug) || null;
+  const cleanSlug = slug.replace(/\.html$/, '');
+  return posts.find((p) => p.slug === slug || p.slug === cleanSlug) || null;
 }
 
 export async function dbUpsertPost(

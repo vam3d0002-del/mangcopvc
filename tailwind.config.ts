@@ -8,6 +8,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-nunito)', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-roboto)', 'system-ui', 'sans-serif'],
+      },
       colors: {
         brand: {
           50: '#eff6ff',

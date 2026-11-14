@@ -39,7 +39,7 @@ export const getCachedSiteSettings = unstable_cache(
   async (): Promise<SiteSettings> => {
     return dbGetSiteSettings();
   },
-  ['site-settings-v5'],
+  ['site-settings-v6'],
   { tags: [CACHE_TAGS.SETTINGS], revalidate: ONE_DAY_IN_SECONDS }
 );
 

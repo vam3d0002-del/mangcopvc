@@ -3981,8 +3981,8 @@ export default function AdminDashboardClient({
                       />
                     </div>
 
-                    {/* Hàng 2 & 3: 4 trường còn lại chia 1 hàng 2 ô (grid-cols-2) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Hàng 2: 3 trường ngắn chia 3 cột */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1.5">
                           Tên thương hiệu ngắn *
@@ -3997,24 +3997,12 @@ export default function AdminDashboardClient({
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                          Hotline hiển thị *
-                        </label>
-                        <input suppressHydrationWarning type="text"
-                          name="hotline"
-                          required
-                          defaultValue={siteSettings.hotline}
-                          placeholder="0935 909 747"
-                          className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                          Số Zalo kỹ thuật *
+                          Số điện thoại &amp; Zalo *
                         </label>
                         <input suppressHydrationWarning type="text"
                           name="zalo"
                           required
-                          defaultValue={siteSettings.zalo}
+                          defaultValue={siteSettings.zalo || '0935909747'}
                           placeholder="0935909747"
                           className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                         />

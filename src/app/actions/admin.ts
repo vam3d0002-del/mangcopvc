@@ -451,18 +451,18 @@ export async function saveSiteSettingsAction(formData: FormData) {
     return { ok: false, message: 'Không có quyền thực hiện' };
   }
 
-  const hotline = (formData.get('hotline') as string)?.trim() || '';
-  const cleanPhone = hotline.replace(/\s|\./g, '');
   const rawZalo = ((formData.get('zalo') as string)?.trim() || '').replace(
     /\s|\./g,
     ''
   );
-  const zalo =
-    !rawZalo ||
-    ((rawZalo === '0907616611' || rawZalo === '0932636239') &&
-      cleanPhone !== rawZalo)
-      ? cleanPhone
-      : rawZalo;
+  const zalo = rawZalo || '0935909747';
+  // Người dùng yêu cầu bỏ trường hotline, tự động đồng bộ hotline hiển thị theo số zalo / điện thoại
+  const rawHotline = (formData.get('hotline') as string)?.trim();
+  const hotline = rawHotline
+    ? rawHotline
+    : zalo.length === 10
+      ? `${zalo.slice(0, 4)} ${zalo.slice(4, 7)} ${zalo.slice(7)}`
+      : (zalo || '0935 909 747');
 
   const res = await dbUpdateSiteSettings({
     company_name: (formData.get('company_name') as string)?.trim(),
