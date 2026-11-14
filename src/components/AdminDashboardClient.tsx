@@ -540,7 +540,7 @@ export default function AdminDashboardClient({
 
   async function handleLogout() {
     await logoutAdminAction();
-    router.push('/admin/login');
+    router.push('/thanhphat/login');
     router.refresh();
   }
 

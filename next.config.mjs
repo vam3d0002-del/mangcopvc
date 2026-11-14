@@ -9,6 +9,13 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // 0. Quản trị viên
+      {
+        source: '/admin/login',
+        destination: '/thanhphat/login',
+        permanent: true,
+      },
+
       // 1. Tin tức cũ (chuyển hướng sang bài viết chuẩn)
       {
         source: '/tintuc',

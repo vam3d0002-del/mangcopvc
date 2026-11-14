@@ -29,7 +29,7 @@ export default async function AdminPage() {
     cookieStore.get('admin_session')?.value === 'authenticated';
 
   if (!isAuthenticated) {
-    redirect('/admin/login');
+    redirect('/thanhphat/login');
   }
 
   const supabaseConfigured = isSupabaseConfigured();
