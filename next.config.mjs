@@ -2,6 +2,9 @@
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://your-project-id.supabase.co';
 
 const nextConfig = {
+  experimental: {
+    agentUpgrade: 'security',
+  },
   images: {
     // Tắt Image Optimization của Vercel để KHÔNG tốn quota Fast Origin Transfer & Image Optimization
     // Vì ảnh đã được tự động nén sang chuẩn WebP (<150KB) ngay trên trình duyệt lúc Admin upload
