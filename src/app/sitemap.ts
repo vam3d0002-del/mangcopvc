@@ -4,8 +4,11 @@ import { getCachedPostsList, getCachedProductsList } from '@/lib/cache';
 export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || 'https://mangcopvc.vercel.app';
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mangcodanang.com'
+  )
+    .trim()
+    .replace(/\/+$/, '');
 
   const [products, posts] = await Promise.all([
     getCachedProductsList(),
@@ -75,19 +78,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const productRoutes: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `${baseUrl}/san-pham/${product.slug}`,
-    lastModified: new Date(product.created_at),
-    changeFrequency: 'monthly',
-    priority: 0.85,
-  }));
+  const productRoutes: MetadataRoute.Sitemap = products
+    .filter((product) => Boolean(product.slug))
+    .map((product) => ({
+      url: `${baseUrl}/san-pham/${product.slug}`,
+      lastModified: product.created_at ? new Date(product.created_at) : new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    }));
 
-  const postRoutes: MetadataRoute.Sitemap = posts.map((post) => ({
-    url: `${baseUrl}/tin-tuc/${post.slug}`,
-    lastModified: new Date(post.created_at),
-    changeFrequency: 'monthly',
-    priority: 0.75,
-  }));
+  const postRoutes: MetadataRoute.Sitemap = posts
+    .filter((post) => Boolean(post.slug))
+    .map((post) => ({
+      url: `${baseUrl}/tin-tuc/${post.slug}`,
+      lastModified: post.created_at ? new Date(post.created_at) : new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    }));
 
   return [...staticRoutes, ...productRoutes, ...postRoutes];
 }

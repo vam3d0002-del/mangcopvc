@@ -28,7 +28,11 @@ const roboto = Roboto({
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getCachedSiteSettings();
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mangcopvc.vercel.app';
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mangcodanang.com'
+  )
+    .trim()
+    .replace(/\/+$/, '');
 
   return {
     metadataBase: new URL(baseUrl),
